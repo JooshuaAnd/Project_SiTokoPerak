@@ -117,7 +117,7 @@
 @stop
 
 @section('content_header')
-    <h1 style="color:black; font-weight:600;">Laporan Pendapatan Per Usaha</h1>
+    <h1 style="color:white; font-weight:600;">Laporan Pendapatan Per Usaha</h1>
 @stop
 
 @section('content')

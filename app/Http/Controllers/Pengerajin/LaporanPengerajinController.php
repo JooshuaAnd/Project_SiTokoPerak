@@ -829,34 +829,56 @@ class LaporanPengerajinController extends Controller
         $statusList = ['baru', 'dibayar', 'diproses', 'dikirim', 'selesai', 'dibatalkan'];
         $pengerajinList = collect([Auth::user()]);
 
-        $transaksi = $this->baseTransaksiQueryPengerajin($request)
-            ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.total_amount', 'o.status', 'o.created_at')
-            ->selectRaw('
-                o.id,
-                COALESCE(u.username, o.customer_name) as username,
-                o.total_amount as total,
-                DATE_FORMAT(o.created_at, "%d-%m-%Y %H:%i") as tanggal_transaksi,
-                o.status
-            ')
-            ->orderByDesc('o.created_at')
-            ->get();
+        // base query (sudah ada join users as u)
+    $base = $this->baseTransaksiQueryPengerajin($request);
 
-        $totalTransaksi = $transaksi->count();
-        $totalNominal = (int) $transaksi->sum('total');
+    // ✅ ambil list user pembeli (khusus yg pernah transaksi di scope pengerajin ini)
+    $userList = (clone $base)
+        ->whereNotNull('u.id')
+        ->select('u.id', 'u.username')
+        ->distinct()
+        ->orderBy('u.username')
+        ->get();
 
-        return view('pengerajin.laporan_usaha.transaksi', compact(
-            'usahaList',
-            'kategoriList',
-            'statusList',
-            'transaksi',
-            'totalTransaksi',
-            'totalNominal',
-            'pengerajinList'
-        ));
+    // ✅ filter user kalau dipilih
+    if ($request->filled('user_id')) {
+        $base->where('o.user_id', $request->user_id);
+    }
+
+    $transaksi = (clone $base)
+        ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.total_amount', 'o.status', 'o.created_at')
+        ->selectRaw('
+            o.id,
+            COALESCE(u.username, o.customer_name) as username,
+            o.total_amount as total,
+            DATE_FORMAT(o.created_at, "%d-%m-%Y %H:%i") as tanggal_transaksi,
+            o.status
+        ')
+        ->orderByDesc('o.created_at')
+        ->get();
+
+    $totalTransaksi = $transaksi->count();
+    $totalNominal = (int) $transaksi->sum('total');
+
+    return view('pengerajin.laporan_usaha.transaksi', compact(
+        'usahaList',
+        'kategoriList',
+        'userList',       // ✅ INI PENTING
+        'statusList',
+        'transaksi',
+        'totalTransaksi',
+        'totalNominal',
+        'pengerajinList'
+    ));
     }
 
     public function exportTransaksi(Request $request)
     {
+        $base = $this->baseTransaksiQueryPengerajin($request);
+
+    if ($request->filled('user_id')) {
+        $base->where('o.user_id', $request->user_id);
+    }
         $rows = $this->baseTransaksiQueryPengerajin($request)
             ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.total_amount', 'o.status', 'o.created_at')
             ->selectRaw('

@@ -116,13 +116,13 @@
 @stop
 
 @section('content_header')
-    <h1 style="color:black; font-weight:600;">Laporan Produk Terlaris</h1>
+    <h1 style="color:white; font-weight:600;">Laporan Produk Terlaris</h1>
 @stop
 
 @section('content')
     <div class="card-modern mb-3">
         <div class="card-body">
-            <form method="GET" action="{{ route('pengerajin.laporan_usaha.produk_terlaris') }}">
+            <form method="GET" action="{{ route('pengerajin.laporan_usaha.produk-terlaris') }}">
                 <div class="row">
                     {{-- Usaha --}}
                     <div class="form-group col-md-3 col-sm-6">
@@ -173,7 +173,7 @@
                         <button type="submit" class="btn btn-primary btn-block mb-2">
                             <i class="fa fa-filter"></i> Terapkan
                         </button>
-                        <a href="{{ route('pengerajin.laporan_usaha.produk_terlaris') }}" class="btn btn-secondary btn-block">
+                        <a href="{{ route('pengerajin.laporan_usaha.produk-terlaris') }}" class="btn btn-secondary btn-block">
                             <i class="fa fa-sync-alt"></i> Reset
                         </a>
 

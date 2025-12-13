@@ -81,7 +81,7 @@
 @stop
 
 @section('content_header')
-    <h1 style="color:black; font-weight:600;">Laporan Kategori Produk</h1>
+    <h1 style="color:white; font-weight:600;">Laporan Kategori Produk</h1>
 @stop
 
 @section('content')
