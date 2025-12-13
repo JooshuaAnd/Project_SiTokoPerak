@@ -1,0 +1,29 @@
+feat: Implementasi fitur ulasan produk dan foto profil pengguna
+
+Menambahkan fungsionalitas ulasan produk secara menyeluruh, mulai dari pengiriman setelah pesanan selesai hingga tampilan di halaman produk. Juga menambahkan fitur bagi pengguna untuk mengunggah dan mengubah foto profil mereka.
+
+- **Fitur Ulasan:**
+  - Memindahkan formulir input ulasan dari halaman produk ke halaman detail pesanan pelanggan (`/customer/orders/{id}`).
+  - Formulir ulasan kini muncul dalam bentuk pop-up modal dan memungkinkan pengguna memberikan ulasan untuk setiap produk dalam pesanan yang telah selesai.
+  - Mengganti input rating dari dropdown menjadi sistem bintang interaktif.
+  - Menampilkan ringkasan ulasan (rata-rata rating, jumlah ulasan per bintang, dll.) di halaman detail produk.
+  - Menambahkan logika filter berbasis JavaScript di halaman produk untuk memfilter ulasan berdasarkan rating.
+
+- **Fitur Profil Pengguna:**
+  - Menambahkan fungsionalitas unggah foto profil di dashboard pelanggan.
+  - Membuat migrasi untuk menambahkan kolom `profile_picture_path` pada tabel `users`.
+  - Meng-handle proses unggah, penyimpanan, dan pembaruan foto profil di controller.
+  - Menampilkan foto profil di dashboard dan menggunakan ikon default jika tidak ada.
+
+- **Peningkatan UI/UX:**
+  - Menambahkan notifikasi "toast" kustom yang muncul saat produk berhasil ditambahkan ke keranjang.
+  - Menyesuaikan durasi notifikasi dan skema warna agar sesuai dengan tema proyek.
+
+- **Perbaikan Bug:**
+  - Memperbaiki bug di mana ulasan dikirim untuk produk yang salah karena *variable shadowing* di view.
+  - Memperbaiki `QueryException` karena nama tabel yang salah pada aturan validasi.
+  - Memperbaiki error `UniqueConstraintViolationException` pada seeder agar bisa dijalankan berulang kali.
+
+- **Seeder & Database:**
+  - Membuat seeder untuk `Users`, `Reviews`, `Orders`, dan `OrderItems` untuk menghasilkan data dummy.
+  - Mengonfigurasi seeder agar dapat mengisi data yang saling berelasi dengan benar.

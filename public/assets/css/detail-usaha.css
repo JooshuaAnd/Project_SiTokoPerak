@@ -1,0 +1,105 @@
+/* CSS untuk Breadcrumb */
+.product-breadcrumb {
+    padding: 0;
+    margin-top: 50px ;
+    margin-bottom: 10px;
+}
+
+.breadcrumb {
+    background-color: transparent;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.breadcrumb-item a {
+    color: #888;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.breadcrumb-item.active {
+    color: #2a2a2a;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.breadcrumb-item a:hover {
+    color: #980808;
+    text-decoration: underline;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+    color: #888;
+    margin: 0 8px;
+}
+
+/* === CSS BARU UNTUK DAFTAR PENGRAJIN === */
+.pengrajin-list-wrapper {
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 1px solid #eee;
+}
+
+.list-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.pengrajin-list-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 15px;
+    border-radius: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #f0f0f0;
+}
+
+.pengrajin-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.pengrajin-contact {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.pengrajin-contact .nama {
+    font-weight: 600;
+    font-size: 15px;
+    color: #2a2a2a;
+}
+
+.pengrajin-contact .email {
+    font-size: 13px;
+    color: #888;
+}
+
+.wa-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    color: #980808;
+    border-radius: 50%;
+    text-decoration: none;
+    font-size: 24px;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.wa-button:hover {
+    color: #25D366;
+    background-color: #eee;
+    transform: scale(1.1);
+}

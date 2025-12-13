@@ -1,0 +1,705 @@
+.product-breadcrumb {
+    padding: 0;
+    margin-top: 50px;
+    margin-bottom: 10px;
+}
+
+.breadcrumb {
+    background-color: transparent;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.breadcrumb-item a {
+    color: #888;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.breadcrumb-item.active {
+    color: #2a2a2a;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.breadcrumb-item a:hover {
+    color: #980808;
+    text-decoration: underline;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+    color: #888;
+    margin: 0 8px;
+}
+
+/* ========== PRODUCT SECTION ========== */
+#product {
+    padding: 0px;
+}
+
+#product .row {
+    align-items: flex-start;
+}
+
+/* ========== GALERI GAMBAR (KOLOM KIRI) ========== */
+.gallery-wrapper {
+    position: sticky;
+    top: 20px;
+}
+
+.main-image-container {
+    width: 100%;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: #f5f5f5;
+}
+
+.main-image-container img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+    border-radius: 12px;
+}
+
+.thumbnail-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 10px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.thumbnail-container::-webkit-scrollbar {
+    display: none;
+}
+
+/* Wrapper untuk scroller */
+.thumbnail-scroller-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin: 0 -15px;
+}
+
+.thumb-nav-btn {
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    color: #666;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+}
+.thumb-nav-btn:hover {
+    background-color: #fff;
+    color: #980808;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+.thumb-nav-btn.prev {
+    left: 0px;
+}
+.thumb-nav-btn.next {
+    right: 0px;
+}
+
+.thumb-nav-btn:active {
+    border: none;
+}
+
+.thumbnail-scroller-wrapper {
+    padding: 0 20px;
+}
+
+.thumbnail-scroller-wrapper .thumbnail-container {
+    flex-grow: 1;
+    padding: 0 10px;
+}
+
+.thumbnail-item {
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    flex: 0 0 23%;
+    min-width: 100px;
+}
+
+.thumbnail-item img {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.thumbnail-item:hover {
+    border-color: #980808;
+    transform: scale(0.98);
+}
+
+.main-image-container {
+    position: relative;
+}
+
+/* Styling tombol navigasi galeri */
+.gallery-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(255, 255, 255, 0.7);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    opacity: 0; /* Sembunyikan secara default */
+}
+
+/* Tampilkan tombol saat container di-hover */
+.main-image-container:hover .gallery-nav {
+    opacity: 1;
+}
+
+.gallery-nav:hover {
+    background-color: #fff;
+    color: #000;
+}
+
+.gallery-nav.prev {
+    left: 15px;
+}
+
+.gallery-nav.next {
+    right: 15px;
+}
+
+/* Style untuk thumbnail yang aktif */
+.thumbnail-item.active {
+    border-color: #980808;
+}
+
+.thumb-nav-btn:focus,
+.thumb-nav-btn:active {
+    outline: none; /* Menghilangkan outline utama */
+}
+
+/* ==========================================================
+   CSS FINAL INFORMASI PRODUK (KOLOM KANAN)
+   ========================================================== */
+
+.right-content {
+    padding-left: 40px;
+}
+
+/* ----- Baris 1: Judul & Ikon Aksi ----- */
+.product-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 8px;
+}
+
+.product-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #2a2a2a;
+    line-height: 1.3;
+}
+
+.action-icons {
+    display: flex;
+    gap: 12px;
+    padding-top: 8px;
+    flex-shrink: 0;
+}
+
+.action-icons .btn-icon {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    color: #888;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.action-icons .btn-icon:hover {
+    color: #980808;
+    background-color: #eee;
+}
+
+.action-icons button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* ----- Baris 2: Rating & Status Stok ----- */
+.rating-stock-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.rating-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stars-custom {
+    color: #f5c518;
+    font-size: 16px;
+}
+.stars-custom i {
+    margin-right: 2px;
+} /* Jarak antar bintang */
+
+.stock-status {
+    background-color: #e6f4f0;
+    color: #008264;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ----- Baris 3: Harga ----- */
+.price {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2a2a2a;
+    display: block;
+    margin-bottom: 24px;
+}
+
+/* ----- Info Usaha ----- */
+.usaha-info {
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    border: 1px solid #e9ecef;
+    background-color: #f8f9fa;
+}
+
+.usaha-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.usaha-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.usaha-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.usaha-name {
+    font-weight: 600;
+    color: #2a2a2a;
+    font-size: 16px;
+}
+
+.usaha-spesialisasi {
+    color: #888;
+    font-size: 14px;
+}
+
+.social-links {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-top: 1px solid #dee2e6;
+    padding-top: 15px;
+}
+
+/* =========================================
+   STYLING IKON SOSIAL MEDIA
+   ========================================= */
+
+/* Aturan dasar untuk setiap ikon (lingkaran) */
+.social-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%; /* Membuat bentuknya bulat */
+    color: #fff;
+    font-size: 16px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Efek saat kursor di atas ikon */
+.social-icon:hover {
+    transform: translateY(-2px); /* Sedikit terangkat */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Ukuran untuk ikon Font Awesome di dalam lingkaran */
+.social-icon i {
+    line-height: 1; /* Memastikan ikon center vertikal */
+}
+
+/* Ukuran untuk gambar (Shopee/Tokped) di dalam lingkaran */
+.social-icon img {
+    width: 18px;
+    height: auto;
+}
+
+/* -- Warna Spesifik untuk Setiap Platform -- */
+
+.social-icon.email {
+    background-color: #6c757d; /* Abu-abu netral */
+}
+.social-icon.whatsapp {
+    background-color: #25d366;
+}
+.social-icon.instagram {
+    background: radial-gradient(
+        circle at 30% 107%,
+        #fdf497 0%,
+        #fdf497 5%,
+        #fd5949 45%,
+        #d6249f 60%,
+        #285aeb 90%
+    );
+}
+.social-icon.tiktok {
+    background-color: #000;
+}
+.social-icon.facebook {
+    background-color: #1877f2;
+}
+
+/* Styling untuk Shopee & Tokopedia yang menggunakan gambar */
+.social-icon.shopee,
+.social-icon.tokped {
+    background-color: #fff;
+    border: 1px solid #eee;
+}
+
+/* ----- Detail Produk ----- */
+.product-details {
+    margin-bottom: 30px;
+}
+
+.product-details h5 {
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 15px;
+    color: #2a2a2a;
+}
+
+/* ========== PRODUK TERKAIT SECTION ========== */
+.section {
+    padding: 60px 0;
+}
+
+.products {
+    padding: 60px 0;
+    background-color: #fff;
+}
+
+.section-heading {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 50px;
+}
+
+.section-heading h2 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2a2a2a;
+    position: relative;
+    margin: 0;
+    padding-bottom: 15px;
+}
+
+.section-heading h2::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background-color: #980808;
+    border-radius: 2px;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 991px) {
+    .right-content {
+        padding-left: 0;
+        margin-top: 30px;
+    }
+
+    .product-title {
+        font-size: 24px;
+    }
+
+    .product-meta-top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .price-status-group {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .gallery-wrapper {
+        position: relative;
+        top: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .thumbnail-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .product-title {
+        font-size: 20px;
+    }
+
+    .price {
+        font-size: 24px;
+    }
+
+    .section-heading h2 {
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 576px) {
+    .product-meta-top {
+        gap: 10px;
+    }
+
+    .thumbnail-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .product-title {
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+
+    .price-status-group {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .pengrajin-info {
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .social-links {
+        gap: 8px;
+    }
+
+    .social-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .product-details p {
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+
+    .product-details ul li {
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+}
+
+/* Reviews and Rating Section */
+#reviews {
+    padding-top: 0;
+}
+
+.reviews-wrapper {
+    margin-bottom: 40px;
+}
+
+.review-item {
+    border-bottom: 1px solid #eee;
+    padding: 20px 0;
+}
+
+.review-item:last-child {
+    border-bottom: none;
+}
+
+.reviewer-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.reviewer-name {
+    font-weight: 600;
+    color: #2a2a2a;
+}
+
+.review-date {
+    font-size: 14px;
+    color: #888;
+}
+
+.review-rating .fa-star {
+    color: #f5c518;
+}
+
+.review-rating .fa-star-o {
+    color: #ddd;
+}
+
+.review-comment {
+    margin-top: 10px;
+}
+
+.review-form-wrapper {
+    background-color: #f8f9fa;
+    padding: 30px;
+    border-radius: 12px;
+}
+
+.review-form-wrapper .section-heading {
+    margin-bottom: 30px;
+    justify-content: flex-start;
+}
+
+.review-form-wrapper .section-heading h2 {
+    font-size: 24px;
+}
+
+.review-form-wrapper .section-heading h2::after {
+    left: 0;
+    transform: translateX(0);
+}
+
+.review-form-wrapper select,
+.review-form-wrapper textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.review-form-wrapper .main-button {
+    background-color: #980808;
+    color: #fff;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.review-form-wrapper .main-button:hover {
+    background-color: #7a0606;
+}
+
+.review-summary-container {
+    display: flex;
+    background-color: #fff7f5;
+    border: 1px solid #fdebe7;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.rating-summary {
+    flex: 0 0 180px;
+    text-align: center;
+    border-right: 1px solid #fdebe7;
+    padding-right: 20px;
+    margin-right: 20px;
+}
+
+.average-rating {
+    font-size: 20px;
+    color: #980808;
+    margin-bottom: 5px;
+}
+
+.average-rating .rating-value {
+    font-size: 36px;
+    font-weight: bold;
+}
+
+.stars-display .fa {
+    color: #980808;
+    font-size: 20px;
+}
+
+.filter-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.filter-btn {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.filter-btn:hover {
+    background-color: #f5f5f5;
+    border-color: #ccc;
+}
+
+.filter-btn.active {
+    background-color: #980808;
+    color: #fff;
+    border-color: #980808;
+}
