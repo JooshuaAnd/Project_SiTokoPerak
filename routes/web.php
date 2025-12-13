@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\LaporanUsahaController;
 use App\Http\Controllers\Pengerajin\DashboardPengerajinController;
 use App\Http\Controllers\Pengerajin\ProfilePengerajinController;
 use App\Http\Controllers\Pengerajin\ProdukPengerajinController;
+use App\Http\Controllers\Pengerajin\LaporanPengerajinController;
 
 
 
@@ -144,31 +145,74 @@ Route::middleware("auth")
             "updateProfile",
         ])->name("profile.update");
     });
-
+// =========================================================================
+// 🌳 GROUP UTAMA PENGERAJIN (Satu-satunya tempat prefix 'pengerajin.' diterapkan)
+// =========================================================================
 Route::group([
     'prefix' => 'pengerajin',
     'as' => 'pengerajin.',
     'middleware' => ['auth', 'role:pengerajin'],
 ], function () {
 
-    Route::get('/dashboard', [DashboardPengerajinController::class, 'dashboard'])
-        ->name('dashboard');
+    // 1. Dashboard, Profile, Produk (Base Routes)
+    Route::get('/dashboard', [DashboardPengerajinController::class, 'dashboard'])->name('dashboard');
+    Route::get('/profile', [ProfilePengerajinController::class, 'profile'])->name('profile');
+    Route::get('/produk', [ProdukPengerajinController::class, 'produk'])->name('produk');
+    Route::get('/produk-all', [ProdukPengerajinController::class, 'produk_all'])->name('produk-all');
 
-    Route::get('/profile', [ProfilePengerajinController::class, 'profile'])
-        ->name('profile');
+    // 2. CRUD PRODUK PENGERAJIN (Nama rute: pengerajin.produk.*)
+    Route::prefix('produk')->name('produk.')->group(function () {
+        Route::get('/create', [ProdukPengerajinController::class, 'create'])->name('create');
+        Route::post('/store', [ProdukPengerajinController::class, 'store'])->name('store');
+        Route::get('/edit/{id}', [ProdukPengerajinController::class, 'edit'])->name('edit');
+        Route::put('/update/{id}', [ProdukPengerajinController::class, 'update'])->name('update');
+        Route::delete('/delete/{id}', [ProdukPengerajinController::class, 'delete'])->name('delete');
+    });
 
-    Route::get('/produk', [ProdukPengerajinController::class, 'produk'])
-        ->name('produk');
+    // 3. LAPORAN USAHA PENGERAJIN (Nama rute: pengerajin.laporan_usaha.*)
+    Route::prefix('laporan-usaha')->name('laporan_usaha.')->group(function () {
+        // 1. Dashboard Laporan Utama
+        // URL: /pengerajin/laporan-usaha
+        // Name: pengerajin.laporan_usaha.index
+        Route::get('/', [LaporanPengerajinController::class, 'index'])->name('index');
 
-    Route::get('/produk-all', [ProdukPengerajinController::class, 'produk_all'])
-        ->name('produk-all');
+        // 2. Transaksi Per User (Pembeli) - Hanya satu definisi
+        // URL: /pengerajin/laporan-usaha/transaksi-user
+        // Name: pengerajin.laporan_usaha.transaksi-user
+        Route::get('/transaksi-user', [LaporanPengerajinController::class, 'transaksiUser'])->name('transaksi-user');
+        Route::get('/transaksi-user/export', [LaporanPengerajinController::class, 'exportTransaksiUser'])->name('transaksi-user.export');
+
+        // 3. Pendapatan Per Usaha
+        Route::get('/pendapatan-usaha', [LaporanPengerajinController::class, 'pendapatanUsaha'])->name('pendapatan-usaha');
+        Route::get('/pendapatan-usaha/export', [LaporanPengerajinController::class, 'exportPendapatanUsaha'])->name('pendapatan-usaha.export');
+
+        // 4. Produk Terlaris
+        Route::get('/produk-terlaris', [LaporanPengerajinController::class, 'produkTerlaris'])->name('produk-terlaris');
+        Route::get('/produk-terlaris/export', [LaporanPengerajinController::class, 'exportProdukTerlaris'])->name('produk-terlaris.export');
+
+        // 5. Produk Slow Moving
+        Route::get('/produk-slow-moving', [LaporanPengerajinController::class, 'produkSlowMoving'])->name('produk-slow-moving');
+        Route::get('/produk-slow-moving/export', [LaporanPengerajinController::class, 'exportProdukSlowMoving'])->name('produk-slow-moving.export');
+
+        // 6. Kategori Produk
+        Route::get('/kategori-produk', [LaporanPengerajinController::class, 'kategoriProduk'])->name('kategori-produk');
+        Route::get('/kategori-produk/export', [LaporanPengerajinController::class, 'exportKategoriProduk'])->name('kategori-produk.export');
+
+        // 7. Produk Favorite
+        Route::get('/produk-favorite', [LaporanPengerajinController::class, 'produkFavorite'])->name('produk-favorite');
+        Route::get('/produk-favorite/export', [LaporanPengerajinController::class, 'exportProdukFavorite'])->name('produk-favorite.export');
+
+        // 8. Produk Views
+        Route::get('/produk-views', [LaporanPengerajinController::class, 'produkViews'])->name('produk-views');
+        Route::get('/produk-views/export', [LaporanPengerajinController::class, 'exportProdukViews'])->name('produk-views.export');
+
+        // 9. SEMUA TRANSAKSI
+        // URL: /pengerajin/laporan-usaha/transaksi
+        // Name: pengerajin.laporan_usaha.transaksi
+        Route::get('/transaksi', [LaporanPengerajinController::class, 'transaksi'])->name('transaksi');
+        Route::get('/transaksi/export', [LaporanPengerajinController::class, 'exportTransaksi'])->name('transaksi.export');
+    });
 });
-//crud produk pengerajin
-Route::get('pengerajin/produk/create', [ProdukPengerajinController::class, 'create'])->name('pengerajin.produk.create');
-Route::post('pengerajin/produk/store', [ProdukPengerajinController::class, 'store'])->name('pengerajin.produk.store');
-Route::get('pengerajin/produk/edit/{id}', [ProdukPengerajinController::class, 'edit'])->name('pengerajin.produk.edit');
-Route::put('pengerajin/produk/update/{id}', [ProdukPengerajinController::class, 'update'])->name('pengerajin.produk.update');
-Route::delete('pengerajin/produk/delete/{id}', [ProdukPengerajinController::class, 'delete'])->name('pengerajin.produk.delete');
 
 Route::middleware(["role:admin"])->group(function () {
     Route::get("admin/profile", [AuthController::class, "profile"])->name(

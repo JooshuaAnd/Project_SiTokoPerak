@@ -26,6 +26,15 @@ class Pengerajin extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
+    public function produk()
+    {
+        return $this->hasMany(Produk::class, 'pengerajin_id');
+    }
+    public function usahas()
+    {
+        // Menggunakan tabel pivot 'usaha_pengerajin'
+        return $this->belongsToMany(Usaha::class, 'usaha_pengerajin', 'pengerajin_id', 'usaha_id');
+    }
 
 
 }
