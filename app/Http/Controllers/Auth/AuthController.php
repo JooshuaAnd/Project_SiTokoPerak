@@ -60,6 +60,9 @@ class AuthController extends Controller
             if ($role === 'pengerajin') {
                 return redirect()->intended('/pengerajin/dashboard');
             }
+            if ($role === 'guest') {
+                return redirect()->intended('/');
+            }
 
             // Jika role tidak dikenali
             Auth::logout();
