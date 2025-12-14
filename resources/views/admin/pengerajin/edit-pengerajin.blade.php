@@ -62,6 +62,13 @@
                 <input type="email" class="form-control" id="email_pengerajin" name="email_pengerajin"
                     value="{{ old('email_pengerajin', $pengerajin->email_pengerajin) }}" required>
             </div>
+            
+            <!--Password-->
+            <div class="form-group mb-3">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" name="password"
+                    placeholder="Masukkan password baru jika ingin mengubah">
+            </div>
 
             <!-- Alamat -->
             <div class="form-group mb-3">

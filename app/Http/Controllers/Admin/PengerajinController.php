@@ -5,6 +5,7 @@ use App\Models\Pengerajin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class PengerajinController extends Controller
 {
@@ -69,23 +70,41 @@ class PengerajinController extends Controller
     }
 
     public function update(Request $request, $id)
-    {
-        $data = $request->validate([
-            "kode_pengerajin" => "required|string|max:255",
-            "nama_pengerajin" => "required|string|max:255",
-            "jk_pengerajin" => "required|string|max:10",
-            "usia_pengerajin" => "required|integer",
-            "telp_pengerajin" => "required|string|max:15",
-            "email_pengerajin" => "required|email|max:255",
-            "alamat_pengerajin" => "required|string|max:255",
-        ]);
+{
+    $pengerajin = Pengerajin::findOrFail($id);
 
-        Pengerajin::where("id", $id)->update($data);
+    $data = $request->validate([
+        "kode_pengerajin"   => "required|string|max:255",
+        "nama_pengerajin"   => "required|string|max:255",
+        "jk_pengerajin"     => "required|string|max:10",
+        "usia_pengerajin"   => "required|integer",
+        "telp_pengerajin"   => "required|string|max:15",
+        "email_pengerajin"  => "required|email|max:255",
+        "alamat_pengerajin" => "required|string|max:255",
+        "password"          => "nullable|min:6",
+    ]);
 
-        return redirect()
-            ->route("admin.pengerajin-index")
-            ->with("success", "Data Pengerajin berhasil diupdate.");
+    // update data pengerajin (tanpa password)
+    $pengerajin->update(collect($data)->except('password')->toArray());
+
+    // update data user terkait (email, name, password)
+    $user = $pengerajin->user; // pastikan relasi ada
+
+    if ($user) {
+        $user->name  = $data['nama_pengerajin'];
+        $user->email = $data['email_pengerajin'];
+
+        if ($request->filled('password')) {
+            $user->password = Hash::make($request->password);
+        }
+
+        $user->save();
     }
+
+    return redirect()
+        ->route("admin.pengerajin-index")
+        ->with("success", "Data Pengerajin berhasil diupdate.");
+}
 
     public function destroy($id)
     {
