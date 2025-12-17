@@ -20,7 +20,7 @@ class LaporanPengerajinController extends Controller
     // =========================================================================
     // HELPER OTENTIKASI & KONTEKS (mapping lewat usaha_pengerajin)
     // =========================================================================
-    private function getPengerajinContext(): array
+    protected function getPengerajinContext(): array
     {
         $userId = Auth::id();
         if (!Auth::check() || !$userId) {
@@ -34,11 +34,11 @@ class LaporanPengerajinController extends Controller
 
         $pengerajinId = (int) $pengerajin->id;
 
-        // ✅ mapping usaha hanya lewat pivot usaha_pengerajin
+        // mapping usaha hanya lewat pivot usaha_pengerajin
         $usahaIds = DB::table('usaha_pengerajin')
             ->where('pengerajin_id', $pengerajinId)
             ->pluck('usaha_id')
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->toArray();
 
         if (empty($usahaIds)) {
@@ -69,6 +69,21 @@ class LaporanPengerajinController extends Controller
                 }
                 break;
 
+            case 'week':
+                // Input HTML type="week" -> format: YYYY-Www (misal: 2025-W09)
+                if ($request->filled('periode_week')) {
+                    $weekInput = $request->input('periode_week'); // contoh: "2025-W09"
+                    try {
+                        [$year, $week] = explode('-W', $weekInput);
+                        $tmp = Carbon::now()->setISODate((int) $year, (int) $week);
+                        $startCarbon = $tmp->copy()->startOfDay();
+                        $endCarbon = $tmp->copy()->endOfWeek(); // akhir minggu (Minggu)
+                    } catch (\Throwable $e) {
+                        // kalau format aneh, biarkan saja -> fallback ke default / manual
+                    }
+                }
+                break;
+
             case 'month':
                 if ($request->filled('periode_year') && $request->filled('periode_month')) {
                     $startCarbon = Carbon::createFromDate(
@@ -89,6 +104,7 @@ class LaporanPengerajinController extends Controller
                 break;
         }
 
+        // Default: kalau user tidak pakai filter tanggal & dikasih defaultLastDays
         if (!$startCarbon && !$endCarbon && $defaultLastDays) {
             $endCarbon = Carbon::now()->endOfDay();
             $startCarbon = $endCarbon->copy()->subDays($defaultLastDays - 1)->startOfDay();
@@ -100,9 +116,13 @@ class LaporanPengerajinController extends Controller
     // =========================================================================
     // BASE QUERY UTAMA (Dashboard Index) - scope lewat usaha_pengerajin
     // =========================================================================
-    private function baseQueryPengerajin(Request $request): Builder
+    protected function baseQueryPengerajin(Request $request): Builder
     {
         [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
+
+        // Kalau user tidak isi filter tahun/bulan -> batasi default 30 hari terakhir
+        $hasSimplePeriode = $request->filled('tahun') || $request->filled('bulan');
+        [$start, $end] = $this->resolveDateRange($request, $hasSimplePeriode ? null : 30);
 
         $base = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
@@ -110,17 +130,22 @@ class LaporanPengerajinController extends Controller
             ->join('produk', 'usaha_produk.produk_id', '=', 'produk.id')
             ->leftJoin('kategori_produk', 'produk.kategori_produk_id', '=', 'kategori_produk.id')
             ->leftJoin('users', 'orders.user_id', '=', 'users.id')
-
-            // ✅ mapping akses usaha lewat pivot
+            // mapping akses usaha lewat pivot
             ->join('usaha_pengerajin as map', function ($join) use ($pengerajinId) {
                 $join->on('map.usaha_id', '=', 'usaha_produk.usaha_id')
                     ->where('map.pengerajin_id', '=', $pengerajinId);
-            });
+            })
+            ->whereIn('usaha_produk.usaha_id', $usahaIds);
 
-        // optional: tambahan filter in untuk performa (tidak wajib)
-        $base->whereIn('usaha_produk.usaha_id', $usahaIds);
+        // Filter tanggal (dari resolveDateRange)
+        if ($start) {
+            $base->whereDate('orders.created_at', '>=', $start);
+        }
+        if ($end) {
+            $base->whereDate('orders.created_at', '<=', $end);
+        }
 
-        // --- FILTER DARI REQUEST ---
+        // Filter tambahan dari request
         if ($request->filled('tahun')) {
             $base->whereYear('orders.created_at', $request->tahun);
         }
@@ -150,14 +175,23 @@ class LaporanPengerajinController extends Controller
         rsort($tahunList);
 
         $bulanList = [
-            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
-            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember'
         ];
 
         $usahaList = Usaha::whereIn('id', $usahaIds)->get();
         $kategoriList = KategoriProduk::all();
-        $pengerajinList = collect([Auth::user()]); // biar view admin yang dicopy tidak error
+        $pengerajinList = collect([Auth::user()]); // supaya view turunan admin tidak error
 
         $base = $this->baseQueryPengerajin($request);
         $baseQuery = clone $base;
@@ -180,7 +214,7 @@ class LaporanPengerajinController extends Controller
 
         $pendapatanChart = [
             'labels' => $pendapatanPerUsaha->pluck('nama_usaha'),
-            'data' => $pendapatanPerUsaha->pluck('total')
+            'data' => $pendapatanPerUsaha->pluck('total'),
         ];
 
         // TOP PRODUK
@@ -201,7 +235,7 @@ class LaporanPengerajinController extends Controller
 
         $produkTerlarisChart = [
             'labels' => $produkTerlaris->pluck('nama_produk'),
-            'data' => $produkTerlaris->pluck('total_qty')
+            'data' => $produkTerlaris->pluck('total_qty'),
         ];
 
         // TOP USER (Pembeli Aktif)
@@ -222,7 +256,7 @@ class LaporanPengerajinController extends Controller
 
         $transaksiUserChart = [
             'labels' => $userAktifList->pluck('username'),
-            'data' => $userAktifList->pluck('total_transaksi')
+            'data' => $userAktifList->pluck('total_transaksi'),
         ];
 
         // TOP KATEGORI
@@ -235,10 +269,10 @@ class LaporanPengerajinController extends Controller
 
         $kategoriChart = [
             'labels' => $kategoriTerjual->pluck('nama_kategori_produk'),
-            'data' => $kategoriTerjual->pluck('total_qty')
+            'data' => $kategoriTerjual->pluck('total_qty'),
         ];
 
-        // PRODUK FAVORITE & VIEWS (hindari dobel count karena produk bisa ada di banyak usaha)
+        // PRODUK FAVORITE
         $produkFavorite = DB::table('produk as p')
             ->whereExists(function ($q) use ($pengerajinId) {
                 $q->select(DB::raw(1))
@@ -258,9 +292,10 @@ class LaporanPengerajinController extends Controller
 
         $produkFavoriteChart = [
             'labels' => $produkFavorite->pluck('nama_produk'),
-            'data' => $produkFavorite->pluck('total_like')
+            'data' => $produkFavorite->pluck('total_like'),
         ];
 
+        // PRODUK VIEWS
         $produkViews = DB::table('produk as p')
             ->whereExists(function ($q) use ($pengerajinId) {
                 $q->select(DB::raw(1))
@@ -280,7 +315,7 @@ class LaporanPengerajinController extends Controller
 
         $produkViewChart = [
             'labels' => $produkViews->pluck('nama_produk'),
-            'data' => $produkViews->pluck('total_view')
+            'data' => $produkViews->pluck('total_view'),
         ];
 
         return view('pengerajin.laporan_usaha.laporan', compact(
@@ -305,7 +340,7 @@ class LaporanPengerajinController extends Controller
     // =========================================================================
     // KATEGORI PRODUK
     // =========================================================================
-    private function baseKategoriProdukQueryPengerajin(Request $request): Builder
+    protected function baseKategoriProdukQueryPengerajin(Request $request): Builder
     {
         [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
 
@@ -318,9 +353,8 @@ class LaporanPengerajinController extends Controller
             })
             ->leftJoin('order_items as oi', 'oi.usaha_produk_id', '=', 'up.id')
             ->leftJoin('orders as o', 'o.id', '=', 'oi.order_id')
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id');
-
-        $query->whereIn('up.usaha_id', $usahaIds);
+            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
+            ->whereIn('up.usaha_id', $usahaIds);
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
@@ -337,47 +371,11 @@ class LaporanPengerajinController extends Controller
         return $query;
     }
 
-    public function kategoriProduk(Request $request)
-    {
-        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
-
-        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
-        $pengerajinList = collect([Auth::user()]);
-
-        $laporan = $this->baseKategoriProdukQueryPengerajin($request)
-            ->groupBy('k.id', 'k.nama_kategori_produk')
-            ->selectRaw('
-                k.nama_kategori_produk,
-                COUNT(DISTINCT p.id) as total_produk,
-                COALESCE(SUM(oi.quantity), 0) as total_terjual
-            ')
-            ->orderBy('k.nama_kategori_produk')
-            ->get();
-
-        return view('pengerajin.laporan_usaha.kategori_produk', compact('usahaList', 'laporan', 'pengerajinList'));
-    }
-
-    public function exportKategoriProduk(Request $request)
-    {
-        $rows = $this->baseKategoriProdukQueryPengerajin($request)
-            ->groupBy('k.id', 'k.nama_kategori_produk')
-            ->selectRaw('k.nama_kategori_produk, COUNT(DISTINCT p.id) as total_produk, COALESCE(SUM(oi.quantity), 0) as total_terjual')
-            ->orderBy('k.nama_kategori_produk')
-            ->get();
-
-        $export = new SimpleCollectionExport(
-            $rows->map(fn ($row) => [$row->nama_kategori_produk, $row->total_produk, $row->total_terjual]),
-            ['Kategori', 'Total Produk', 'Total Terjual']
-        );
-
-        $filename = 'kategori_produk_pengerajin_' . now()->format('Ymd_His') . '.xlsx';
-        return Excel::download($export, $filename);
-    }
 
     // =========================================================================
     // PENDAPATAN PER USAHA
     // =========================================================================
-    private function basePendapatanUsahaQueryPengerajin(Request $request): Builder
+    protected function basePendapatanUsahaQueryPengerajin(Request $request): Builder
     {
         [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
 
@@ -390,9 +388,8 @@ class LaporanPengerajinController extends Controller
             ->join('usaha_pengerajin as map', function ($join) use ($pengerajinId) {
                 $join->on('map.usaha_id', '=', 'up.usaha_id')
                     ->where('map.pengerajin_id', '=', $pengerajinId);
-            });
-
-        $query->whereIn('up.usaha_id', $usahaIds);
+            })
+            ->whereIn('up.usaha_id', $usahaIds);
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
@@ -412,76 +409,10 @@ class LaporanPengerajinController extends Controller
         return $query;
     }
 
-    public function pendapatanUsaha(Request $request)
-    {
-        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
-
-        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
-        $kategoriList = KategoriProduk::all();
-        $pengerajinList = collect([Auth::user()]);
-
-        $laporan = $this->basePendapatanUsahaQueryPengerajin($request)
-            ->groupBy('u.id', 'u.nama_usaha')
-            ->selectRaw('
-                u.nama_usaha,
-                COUNT(DISTINCT o.id) as total_transaksi,
-                SUM(oi.quantity * oi.price_at_purchase) as total_penjualan,
-                SUM(oi.quantity * oi.price_at_purchase) / NULLIF(COUNT(DISTINCT o.id), 0) as rata_rata_transaksi,
-                MAX(o.created_at) as transaksi_terakhir
-            ')
-            ->orderByDesc('total_penjualan')
-            ->get();
-
-        $totalUsaha = $laporan->count();
-        $totalTransaksi = (int) $laporan->sum('total_transaksi');
-        $totalPendapatan = (int) $laporan->sum('total_penjualan');
-        $avgTransaksiGlobal = $totalTransaksi > 0 ? (int) floor($totalPendapatan / $totalTransaksi) : 0;
-
-        return view('pengerajin.laporan_usaha.pendapatan_usaha', compact(
-            'usahaList',
-            'kategoriList',
-            'laporan',
-            'totalUsaha',
-            'totalTransaksi',
-            'totalPendapatan',
-            'avgTransaksiGlobal',
-            'pengerajinList'
-        ));
-    }
-
-    public function exportPendapatanUsaha(Request $request)
-    {
-        $rows = $this->basePendapatanUsahaQueryPengerajin($request)
-            ->groupBy('u.id', 'u.nama_usaha')
-            ->selectRaw('
-                u.nama_usaha,
-                COUNT(DISTINCT o.id) as total_transaksi,
-                SUM(oi.quantity * oi.price_at_purchase) as total_penjualan,
-                SUM(oi.quantity * oi.price_at_purchase) / NULLIF(COUNT(DISTINCT o.id), 0) as rata_rata_transaksi,
-                MAX(o.created_at) as transaksi_terakhir
-            ')
-            ->orderByDesc('total_penjualan')
-            ->get();
-
-        $export = new SimpleCollectionExport(
-            $rows->map(fn ($row) => [
-                $row->nama_usaha,
-                $row->total_transaksi,
-                $row->total_penjualan,
-                $row->rata_rata_transaksi,
-                $row->transaksi_terakhir
-            ]),
-            ['Usaha', 'Total Transaksi', 'Total Penjualan', 'Rata-rata Transaksi', 'Transaksi Terakhir']
-        );
-
-        $filename = 'pendapatan_usaha_pengerajin_' . now()->format('Ymd_His') . '.xlsx';
-        return Excel::download($export, $filename);
-    }
-
     // =========================================================================
     // PRODUK FAVORITE
     // =========================================================================
-    private function baseProdukFavoriteQueryPengerajin(Request $request): Builder
+    protected function baseProdukFavoriteQueryPengerajin(Request $request): Builder
     {
         [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
 
@@ -492,9 +423,8 @@ class LaporanPengerajinController extends Controller
                     ->where('map.pengerajin_id', '=', $pengerajinId);
             })
             ->leftJoin('produk_likes as pl', 'pl.produk_id', '=', 'p.id')
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id');
-
-        $query->whereIn('up.usaha_id', $usahaIds);
+            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
+            ->whereIn('up.usaha_id', $usahaIds);
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
@@ -510,63 +440,15 @@ class LaporanPengerajinController extends Controller
 
         return $query;
     }
-
-    public function produkFavorite(Request $request)
-    {
-        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
-
-        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
-        $pengerajinList = collect([Auth::user()]);
-
-        $laporan = $this->baseProdukFavoriteQueryPengerajin($request)
-            ->groupBy('p.id', 'p.nama_produk')
-            ->selectRaw('p.nama_produk, COUNT(pl.id) as total_like')
-            ->orderByDesc('total_like')
-            ->get();
-
-        $totalProduk = DB::table('produk as p')
-            ->whereExists(function ($q) use ($pengerajinId) {
-                $q->select(DB::raw(1))
-                    ->from('usaha_produk as up')
-                    ->join('usaha_pengerajin as map', function ($join) use ($pengerajinId) {
-                        $join->on('map.usaha_id', '=', 'up.usaha_id')
-                            ->where('map.pengerajin_id', '=', $pengerajinId);
-                    })
-                    ->whereColumn('up.produk_id', 'p.id');
-            })
-            ->distinct('p.id')
-            ->count('p.id');
-
-        return view('pengerajin.laporan_usaha.produk_favorite', compact(
-            'usahaList',
-            'laporan',
-            'totalProduk',
-            'pengerajinList'
-        ));
-    }
-
-    public function exportProdukFavorite(Request $request)
-    {
-        $rows = $this->baseProdukFavoriteQueryPengerajin($request)
-            ->groupBy('p.id', 'p.nama_produk')
-            ->selectRaw('p.nama_produk, COUNT(pl.id) as total_like')
-            ->orderByDesc('total_like')
-            ->get();
-
-        $export = new SimpleCollectionExport(
-            $rows->map(fn ($row) => [$row->nama_produk, $row->total_like]),
-            ['Nama Produk', 'Total Like']
-        );
-
-        $filename = 'produk_favorite_pengerajin_' . now()->format('Ymd_His') . '.xlsx';
-        return Excel::download($export, $filename);
-    }
-
     // =========================================================================
     // PRODUK SLOW MOVING
     // =========================================================================
-    protected function baseProdukSlowMovingQueryPengerajin(Request $request, ?string $start, ?string $end, int $threshold): Builder
-    {
+    protected function baseProdukSlowMovingQueryPengerajin(
+        Request $request,
+        ?string $start,
+        ?string $end,
+        int $threshold
+    ): Builder {
         [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
 
         $query = DB::table('produk as p')
@@ -585,9 +467,8 @@ class LaporanPengerajinController extends Controller
                 if ($end) {
                     $join->whereDate('oi.created_at', '<=', $end);
                 }
-            });
-
-        $query->whereIn('up.usaha_id', $usahaIds);
+            })
+            ->whereIn('up.usaha_id', $usahaIds);
 
         if ($request->filled('usaha_id')) {
             $query->where('u.id', $request->usaha_id);
@@ -609,62 +490,6 @@ class LaporanPengerajinController extends Controller
 
         return $query;
     }
-
-    public function produkSlowMoving(Request $request)
-    {
-        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
-
-        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
-        $kategoriList = KategoriProduk::all();
-        $threshold = 5;
-
-        [$startCarbon, $endCarbon] = $this->resolveDateRange($request, 30);
-        $start = $startCarbon ? $startCarbon->toDateString() : null;
-        $end = $endCarbon ? $endCarbon->toDateString() : null;
-        $pengerajinList = collect([Auth::user()]);
-
-        $laporan = $this->baseProdukSlowMovingQueryPengerajin($request, $start, $end, $threshold)->get();
-
-        $totalProdukSlow = $laporan->count();
-        $totalQtyTerjual = (int) $laporan->sum('total_terjual');
-
-        return view('pengerajin.laporan_usaha.produk_slow_moving', compact(
-            'usahaList',
-            'kategoriList',
-            'laporan',
-            'start',
-            'end',
-            'threshold',
-            'totalProdukSlow',
-            'totalQtyTerjual',
-            'pengerajinList'
-        ));
-    }
-
-    public function exportProdukSlowMoving(Request $request)
-    {
-        $threshold = 5;
-
-        [$startCarbon, $endCarbon] = $this->resolveDateRange($request, 30);
-        $start = $startCarbon ? $startCarbon->toDateString() : null;
-        $end = $endCarbon ? $endCarbon->toDateString() : null;
-
-        $rows = $this->baseProdukSlowMovingQueryPengerajin($request, $start, $end, $threshold)->get();
-
-        $export = new SimpleCollectionExport(
-            $rows->map(fn ($row) => [
-                $row->nama_usaha,
-                $row->nama_produk,
-                $row->total_terjual,
-                $row->transaksi_terakhir
-            ]),
-            ['Usaha', 'Nama Produk', 'Total Terjual', 'Transaksi Terakhir']
-        );
-
-        $filename = 'produk_slow_moving_pengerajin_' . now()->format('Ymd_His') . '.xlsx';
-        return Excel::download($export, $filename);
-    }
-
     // =========================================================================
     // PRODUK TERLARIS
     // =========================================================================
@@ -680,9 +505,8 @@ class LaporanPengerajinController extends Controller
             ->join('usaha_pengerajin as map', function ($join) use ($pengerajinId) {
                 $join->on('map.usaha_id', '=', 'up.usaha_id')
                     ->where('map.pengerajin_id', '=', $pengerajinId);
-            });
-
-        $query->whereIn('up.usaha_id', $usahaIds);
+            })
+            ->whereIn('up.usaha_id', $usahaIds);
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
@@ -702,54 +526,6 @@ class LaporanPengerajinController extends Controller
         return $query;
     }
 
-    public function produkTerlaris(Request $request)
-    {
-        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
-
-        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
-        $kategoriList = KategoriProduk::all();
-        $pengerajinList = collect([Auth::user()]);
-
-        $laporan = $this->baseProdukTerlarisQueryPengerajin($request)
-            ->groupBy('p.id', 'p.nama_produk')
-            ->selectRaw('p.nama_produk, SUM(oi.quantity) as total_terjual')
-            ->orderByDesc('total_terjual')
-            ->get();
-
-        $totalProduk = $laporan->count();
-        $totalTerjual = (int) $laporan->sum('total_terjual');
-        $topRow = $laporan->first();
-        $chartData = $laporan->take(10)->values();
-
-        return view('pengerajin.laporan_usaha.produk_terlaris', compact(
-            'usahaList',
-            'kategoriList',
-            'laporan',
-            'totalProduk',
-            'totalTerjual',
-            'topRow',
-            'chartData',
-            'pengerajinList'
-        ));
-    }
-
-    public function exportProdukTerlaris(Request $request)
-    {
-        $rows = $this->baseProdukTerlarisQueryPengerajin($request)
-            ->groupBy('p.id', 'p.nama_produk')
-            ->selectRaw('p.nama_produk, SUM(oi.quantity) as total_terjual')
-            ->orderByDesc('total_terjual')
-            ->get();
-
-        $export = new SimpleCollectionExport(
-            $rows->map(fn ($row) => [$row->nama_produk, $row->total_terjual]),
-            ['Nama Produk', 'Total Terjual']
-        );
-
-        $filename = 'produk_terlaris_pengerajin_' . now()->format('Ymd_His') . '.xlsx';
-        return Excel::download($export, $filename);
-    }
-
     // =========================================================================
     // PRODUK VIEWS
     // =========================================================================
@@ -764,9 +540,8 @@ class LaporanPengerajinController extends Controller
                 $join->on('map.usaha_id', '=', 'up.usaha_id')
                     ->where('map.pengerajin_id', '=', $pengerajinId);
             })
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id');
-
-        $viewsQuery->whereIn('up.usaha_id', $usahaIds);
+            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
+            ->whereIn('up.usaha_id', $usahaIds);
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
@@ -783,64 +558,8 @@ class LaporanPengerajinController extends Controller
         return $viewsQuery;
     }
 
-    public function produkViews(Request $request)
-    {
-        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
-
-        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
-        $pengerajinList = collect([Auth::user()]);
-
-        $totalProduk = DB::table('produk as p')
-            ->whereExists(function ($q) use ($pengerajinId) {
-                $q->select(DB::raw(1))
-                    ->from('usaha_produk as up')
-                    ->join('usaha_pengerajin as map', function ($join) use ($pengerajinId) {
-                        $join->on('map.usaha_id', '=', 'up.usaha_id')
-                            ->where('map.pengerajin_id', '=', $pengerajinId);
-                    })
-                    ->whereColumn('up.produk_id', 'p.id');
-            })
-            ->distinct('p.id')
-            ->count('p.id');
-
-        $produkViews = $this->baseProdukViewsQueryPengerajin($request)
-            ->groupBy('p.id', 'p.nama_produk')
-            ->selectRaw('p.nama_produk, COUNT(pv.id) as total_views')
-            ->orderByDesc('total_views')
-            ->get();
-
-        $produkDenganViews = $produkViews->count();
-        $totalViews = (int) $produkViews->sum('total_views');
-
-        return view('pengerajin.laporan_usaha.produk_views', compact(
-            'usahaList',
-            'totalProduk',
-            'produkDenganViews',
-            'totalViews',
-            'produkViews',
-            'pengerajinList'
-        ));
-    }
-
-    public function exportProdukViews(Request $request)
-    {
-        $rows = $this->baseProdukViewsQueryPengerajin($request)
-            ->groupBy('p.id', 'p.nama_produk')
-            ->selectRaw('p.nama_produk, COUNT(pv.id) as total_views')
-            ->orderByDesc('total_views')
-            ->get();
-
-        $export = new SimpleCollectionExport(
-            $rows->map(fn ($row) => [$row->nama_produk, $row->total_views]),
-            ['Nama Produk', 'Total Views']
-        );
-
-        $filename = 'produk_views_pengerajin_' . now()->format('Ymd_His') . '.xlsx';
-        return Excel::download($export, $filename);
-    }
-
     // =========================================================================
-    // PRODUK TRANSAKSI PER USER (PEMBELI)
+    // TRANSAKSI PER USER (PEMBELI)
     // =========================================================================
     protected function baseTransaksiUserQueryPengerajin(Request $request): Builder
     {
@@ -856,9 +575,8 @@ class LaporanPengerajinController extends Controller
             ->join('usaha_pengerajin as map', function ($join) use ($pengerajinId) {
                 $join->on('map.usaha_id', '=', 'up.usaha_id')
                     ->where('map.pengerajin_id', '=', $pengerajinId);
-            });
-
-        $query->whereIn('up.usaha_id', $usahaIds);
+            })
+            ->whereIn('up.usaha_id', $usahaIds);
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
@@ -878,52 +596,6 @@ class LaporanPengerajinController extends Controller
         return $query;
     }
 
-    public function transaksiUser(Request $request)
-    {
-        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
-
-        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
-        $kategoriList = KategoriProduk::all();
-        $pengerajinList = collect([Auth::user()]);
-
-        $laporan = $this->baseTransaksiUserQueryPengerajin($request)
-            ->groupBy('u.id', 'u.username')
-            ->selectRaw('u.username, COUNT(DISTINCT o.id) as total_transaksi, SUM(oi.quantity * oi.price_at_purchase) as total_belanja')
-            ->orderByDesc('total_belanja')
-            ->get();
-
-        $totalUser = $laporan->count();
-        $totalTransaksi = (int) $laporan->sum('total_transaksi');
-        $totalBelanja = (int) $laporan->sum('total_belanja');
-
-        return view('pengerajin.laporan_usaha.transaksi_user', compact(
-            'usahaList',
-            'kategoriList',
-            'laporan',
-            'totalUser',
-            'totalTransaksi',
-            'totalBelanja',
-            'pengerajinList'
-        ));
-    }
-
-    public function exportTransaksiUser(Request $request)
-    {
-        $rows = $this->baseTransaksiUserQueryPengerajin($request)
-            ->groupBy('u.id', 'u.username')
-            ->selectRaw('u.username, COUNT(DISTINCT o.id) as total_transaksi, SUM(oi.quantity * oi.price_at_purchase) as total_belanja')
-            ->orderByDesc('total_belanja')
-            ->get();
-
-        $export = new SimpleCollectionExport(
-            $rows->map(fn ($row) => [$row->username, $row->total_transaksi, $row->total_belanja]),
-            ['User', 'Total Transaksi', 'Total Belanja']
-        );
-
-        $filename = 'transaksi_user_pengerajin_' . now()->format('Ymd_His') . '.xlsx';
-        return Excel::download($export, $filename);
-    }
-
     // =========================================================================
     // SEMUA TRANSAKSI
     // =========================================================================
@@ -941,9 +613,8 @@ class LaporanPengerajinController extends Controller
             ->join('usaha_pengerajin as map', function ($join) use ($pengerajinId) {
                 $join->on('map.usaha_id', '=', 'up.usaha_id')
                     ->where('map.pengerajin_id', '=', $pengerajinId);
-            });
-
-        $base->whereIn('up.usaha_id', $usahaIds);
+            })
+            ->whereIn('up.usaha_id', $usahaIds);
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
@@ -964,90 +635,5 @@ class LaporanPengerajinController extends Controller
         }
 
         return $base;
-    }
-
-    public function transaksi(Request $request)
-    {
-        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
-
-        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
-        $kategoriList = KategoriProduk::all();
-        $statusList = ['baru', 'dibayar', 'diproses', 'dikirim', 'selesai', 'dibatalkan'];
-        $pengerajinList = collect([Auth::user()]);
-
-        $base = $this->baseTransaksiQueryPengerajin($request);
-
-        // list user pembeli dalam scope usaha_pengerajin
-        $userList = (clone $base)
-            ->whereNotNull('u.id')
-            ->select('u.id', 'u.username')
-            ->distinct()
-            ->orderBy('u.username')
-            ->get();
-
-        if ($request->filled('user_id')) {
-            $base->where('o.user_id', $request->user_id);
-        }
-
-        $transaksi = (clone $base)
-            ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.total_amount', 'o.status', 'o.created_at')
-            ->selectRaw('
-                o.id,
-                COALESCE(u.username, o.customer_name) as username,
-                o.total_amount as total,
-                DATE_FORMAT(o.created_at, "%d-%m-%Y %H:%i") as tanggal_transaksi,
-                o.status
-            ')
-            ->orderByDesc('o.created_at')
-            ->get();
-
-        $totalTransaksi = $transaksi->count();
-        $totalNominal = (int) $transaksi->sum('total');
-
-        return view('pengerajin.laporan_usaha.transaksi', compact(
-            'usahaList',
-            'kategoriList',
-            'userList',
-            'statusList',
-            'transaksi',
-            'totalTransaksi',
-            'totalNominal',
-            'pengerajinList'
-        ));
-    }
-
-    public function exportTransaksi(Request $request)
-    {
-        $base = $this->baseTransaksiQueryPengerajin($request);
-
-        if ($request->filled('user_id')) {
-            $base->where('o.user_id', $request->user_id);
-        }
-
-        $rows = (clone $base)
-            ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.total_amount', 'o.status', 'o.created_at')
-            ->selectRaw('
-                o.id,
-                COALESCE(u.username, o.customer_name) as username,
-                o.total_amount as total,
-                DATE_FORMAT(o.created_at, "%d-%m-%Y %H:%i") as tanggal_transaksi,
-                o.status
-            ')
-            ->orderByDesc('o.created_at')
-            ->get();
-
-        $export = new SimpleCollectionExport(
-            $rows->map(fn ($row) => [
-                $row->id,
-                $row->username,
-                $row->total,
-                $row->tanggal_transaksi,
-                $row->status
-            ]),
-            ['ID', 'User', 'Total (Rp)', 'Tanggal', 'Status']
-        );
-
-        $filename = 'semua_transaksi_pengerajin_' . now()->format('Ymd_His') . '.xlsx';
-        return Excel::download($export, $filename);
     }
 }

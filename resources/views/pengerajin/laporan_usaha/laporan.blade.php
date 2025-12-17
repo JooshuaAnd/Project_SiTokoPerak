@@ -65,80 +65,17 @@
 
 
     {{-- 🔍 FILTER GLOBAL (Card yang membungkus semua filter) --}}
-    <div class="card-modern mb-4 p-4">
-        <form method="GET" action="{{ route('pengerajin.laporan_usaha.index') }}">
-            <div class="row">
-                {{-- Filter Tahun --}}
-                <div class="form-group col-md-2 col-sm-6">
-                    <label style="color:#b8ccdf;">Tahun</label>
-                    <select name="tahun" class="form-control">
-                        <option value="">Semua</option>
-                        @foreach ($tahunList as $tahun)
-                            <option value="{{ $tahun }}"
-                                {{ (string) request('tahun') === (string) $tahun ? 'selected' : '' }}>
-                                {{ $tahun }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                {{-- Filter Bulan --}}
-                <div class="form-group col-md-2 col-sm-6">
-                    <label style="color:#b8ccdf;">Bulan</label>
-                    <select name="bulan" class="form-control">
-                        <option value="">Semua</option>
-                        @foreach ($bulanList as $num => $nama)
-                            <option value="{{ $num }}"
-                                {{ (string) request('bulan') === (string) $num ? 'selected' : '' }}>
-                                {{ $nama }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                {{-- Filter Usaha --}}
-                <div class="form-group col-md-2 col-sm-6">
-                    <label style="color:#b8ccdf;">Usaha</label>
-                    <select name="usaha_id" class="form-control">
-                        <option value="">Semua</option>
-                        @foreach ($usahaList as $usaha)
-                            <option value="{{ $usaha->id }}"
-                                {{ (string) request('usaha_id') === (string) $usaha->id ? 'selected' : '' }}>
-                                {{ $usaha->nama_usaha }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                {{-- Filter Kategori --}}
-                <div class="form-group col-md-2 col-sm-6">
-                    <label style="color:#b8ccdf;">Kategori</label>
-                    <select name="kategori_id" class="form-control">
-                        <option value="">Semua</option>
-                        @foreach ($kategoriList as $kategori)
-                            <option value="{{ $kategori->id }}"
-                                {{ (string) request('kategori_id') === (string) $kategori->id ? 'selected' : '' }}>
-                                {{ $kategori->nama_kategori_produk }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                
-                {{-- Filter Pengerajin (DISATUKAN DENGAN BUTTON) --}}
-                <div class="form-group col-md-4 col-sm-12" style="margin-top: 24px;">
-                    <div class="row">
-                        <div class="col-6">
-                            <button type="submit" class="btn btn-primary btn-block">
-                                <i class="fa fa-filter"></i> Terapkan
-                            </button>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ route('pengerajin.laporan_usaha.index') }}" class="btn btn-secondary btn-block">
-                                <i class="fa fa-sync-alt"></i> Reset
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
+    @include('pengerajin.laporan_usaha.filter', [
+        'action' => route('pengerajin.laporan_usaha.index'),
+        'resetUrl' => route('pengerajin.laporan_usaha.index'),
+        'showTahun' => true,
+        'showBulan' => true,
+        'showUsaha' => true,
+        'showKategori' => true,
+        'showDateRange' => false, // di dashboard pakai tahun/bulan saja
+        'showPeriode' => true, // kalau nggak mau opsi Per Hari/Bulan/Tahun di sini
+        // nggak perlu export di dashboard => nggak kita isi 'exportRoute'
+    ])
 
     {{-- GRID DASHBOARD UTAMA --}}
     <div class="dashboard-grid">

@@ -27,6 +27,8 @@ use App\Http\Controllers\Pengerajin\DashboardPengerajinController;
 use App\Http\Controllers\Pengerajin\ProfilePengerajinController;
 use App\Http\Controllers\Pengerajin\ProdukPengerajinController;
 use App\Http\Controllers\Pengerajin\LaporanPengerajinController;
+use App\Http\Controllers\Export\PengerajinLaporanController as ExportPengerajinLaporanController;
+
 
 
 
@@ -179,38 +181,38 @@ Route::group([
         // 2. Transaksi Per User (Pembeli) - Hanya satu definisi
         // URL: /pengerajin/laporan-usaha/transaksi-user
         // Name: pengerajin.laporan_usaha.transaksi-user
-        Route::get('/transaksi-user', [LaporanPengerajinController::class, 'transaksiUser'])->name('transaksi-user');
-        Route::get('/transaksi-user/export', [LaporanPengerajinController::class, 'exportTransaksiUser'])->name('transaksi-user.export');
+        Route::get('/transaksi-user', [ExportPengerajinLaporanController::class, 'transaksiUser'])->name('transaksi-user');
+        Route::get('/transaksi-user/export', [ExportPengerajinLaporanController::class, 'exportTransaksiUser'])->name('transaksi-user.export');
 
         // 3. Pendapatan Per Usaha
-        Route::get('/pendapatan-usaha', [LaporanPengerajinController::class, 'pendapatanUsaha'])->name('pendapatan-usaha');
-        Route::get('/pendapatan-usaha/export', [LaporanPengerajinController::class, 'exportPendapatanUsaha'])->name('pendapatan-usaha.export');
+        Route::get('/pendapatan-usaha', [ExportPengerajinLaporanController::class, 'pendapatanUsaha'])->name('pendapatan-usaha');
+        Route::get('/pendapatan-usaha/export', [ExportPengerajinLaporanController::class, 'exportPendapatanUsaha'])->name('pendapatan-usaha.export');
 
         // 4. Produk Terlaris
-        Route::get('/produk-terlaris', [LaporanPengerajinController::class, 'produkTerlaris'])->name('produk-terlaris');
-        Route::get('/produk-terlaris/export', [LaporanPengerajinController::class, 'exportProdukTerlaris'])->name('produk-terlaris.export');
+        Route::get('/produk-terlaris', [ExportPengerajinLaporanController::class, 'produkTerlaris'])->name('produk-terlaris');
+        Route::get('/produk-terlaris/export', [ExportPengerajinLaporanController::class, 'exportProdukTerlaris'])->name('produk-terlaris.export');
 
         // 5. Produk Slow Moving
-        Route::get('/produk-slow-moving', [LaporanPengerajinController::class, 'produkSlowMoving'])->name('produk-slow-moving');
-        Route::get('/produk-slow-moving/export', [LaporanPengerajinController::class, 'exportProdukSlowMoving'])->name('produk-slow-moving.export');
+        Route::get('/produk-slow-moving', [ExportPengerajinLaporanController::class, 'produkSlowMoving'])->name('produk-slow-moving');
+        Route::get('/produk-slow-moving/export', [ExportPengerajinLaporanController::class, 'exportProdukSlowMoving'])->name('produk-slow-moving.export');
 
         // 6. Kategori Produk
-        Route::get('/kategori-produk', [LaporanPengerajinController::class, 'kategoriProduk'])->name('kategori-produk');
-        Route::get('/kategori-produk/export', [LaporanPengerajinController::class, 'exportKategoriProduk'])->name('kategori-produk.export');
+        Route::get('/kategori-produk', [ExportPengerajinLaporanController::class, 'kategoriProduk'])->name('kategori-produk');
+        Route::get('/kategori-produk/export', [ExportPengerajinLaporanController::class, 'exportKategoriProduk'])->name('kategori-produk.export');
 
         // 7. Produk Favorite
-        Route::get('/produk-favorite', [LaporanPengerajinController::class, 'produkFavorite'])->name('produk-favorite');
-        Route::get('/produk-favorite/export', [LaporanPengerajinController::class, 'exportProdukFavorite'])->name('produk-favorite.export');
+        Route::get('/produk-favorite', [ExportPengerajinLaporanController::class, 'produkFavorite'])->name('produk-favorite');
+        Route::get('/produk-favorite/export', [ExportPengerajinLaporanController::class, 'exportProdukFavorite'])->name('produk-favorite.export');
 
         // 8. Produk Views
-        Route::get('/produk-views', [LaporanPengerajinController::class, 'produkViews'])->name('produk-views');
-        Route::get('/produk-views/export', [LaporanPengerajinController::class, 'exportProdukViews'])->name('produk-views.export');
+        Route::get('/produk-views', [ExportPengerajinLaporanController::class, 'produkViews'])->name('produk-views');
+        Route::get('/produk-views/export', [ExportPengerajinLaporanController::class, 'exportProdukViews'])->name('produk-views.export');
 
         // 9. SEMUA TRANSAKSI
         // URL: /pengerajin/laporan-usaha/transaksi
         // Name: pengerajin.laporan_usaha.transaksi
-        Route::get('/transaksi', [LaporanPengerajinController::class, 'transaksi'])->name('transaksi');
-        Route::get('/transaksi/export', [LaporanPengerajinController::class, 'exportTransaksi'])->name('transaksi.export');
+        Route::get('/transaksi', [ExportPengerajinLaporanController::class, 'transaksi'])->name('transaksi');
+        Route::get('/transaksi/export', [ExportPengerajinLaporanController::class, 'exportTransaksi'])->name('transaksi.export');
     });
 });
 

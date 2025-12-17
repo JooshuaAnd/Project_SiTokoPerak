@@ -64,80 +64,16 @@
 
 
     {{-- 🔍 FILTER GLOBAL (Card yang membungkus semua filter) --}}
-    <div class="card-modern mb-4 p-4">
-        <form method="GET" action="{{ route('pengerajin.laporan_usaha.index') }}">
-            <div class="row">
-                {{-- Filter Tahun --}}
-                <div class="form-group col-md-2 col-sm-6">
-                    <label style="color:#b8ccdf;">Tahun</label>
-                    <select name="tahun" class="form-control">
-                        <option value="">Semua</option>
-                        @foreach ($tahunList as $tahun)
-                            <option value="{{ $tahun }}"
-                                {{ (string) request('tahun') === (string) $tahun ? 'selected' : '' }}>
-                                {{ $tahun }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                {{-- Filter Bulan --}}
-                <div class="form-group col-md-2 col-sm-6">
-                    <label style="color:#b8ccdf;">Bulan</label>
-                    <select name="bulan" class="form-control">
-                        <option value="">Semua</option>
-                        @foreach ($bulanList as $num => $nama)
-                            <option value="{{ $num }}"
-                                {{ (string) request('bulan') === (string) $num ? 'selected' : '' }}>
-                                {{ $nama }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                {{-- Filter Usaha --}}
-                <div class="form-group col-md-2 col-sm-6">
-                    <label style="color:#b8ccdf;">Usaha</label>
-                    <select name="usaha_id" class="form-control">
-                        <option value="">Semua</option>
-                        @foreach ($usahaList as $usaha)
-                            <option value="{{ $usaha->id }}"
-                                {{ (string) request('usaha_id') === (string) $usaha->id ? 'selected' : '' }}>
-                                {{ $usaha->nama_usaha }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                {{-- Filter Kategori --}}
-                <div class="form-group col-md-2 col-sm-6">
-                    <label style="color:#b8ccdf;">Kategori</label>
-                    <select name="kategori_id" class="form-control">
-                        <option value="">Semua</option>
-                        @foreach ($kategoriList as $kategori)
-                            <option value="{{ $kategori->id }}"
-                                {{ (string) request('kategori_id') === (string) $kategori->id ? 'selected' : '' }}>
-                                {{ $kategori->nama_kategori_produk }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                {{-- Tombol Terapkan & Reset --}}
-                <div class="form-group col-md-4 col-sm-12" style="margin-top: 24px;">
-                    <div class="row">
-                        <div class="col-6">
-                            <button type="submit" class="btn btn-primary btn-block">
-                                <i class="fa fa-filter"></i> Terapkan
-                            </button>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ route('pengerajin.laporan_usaha.index') }}" class="btn btn-secondary btn-block">
-                                <i class="fa fa-sync-alt"></i> Reset
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
-
+    @include('pengerajin.laporan_usaha.filter', [
+        'action' => route('pengerajin.laporan_usaha.transaksi'),
+        'resetUrl' => route('pengerajin.laporan_usaha.transaksi'),
+        'showUsaha' => true,
+        'showKategori' => true,
+        'showStatus' => true,
+        'showDateRange' => true,
+        'showPeriode' => true,
+        'exportRoute' => 'pengerajin.laporan_usaha.transaksi.export',
+    ])
     {{-- GRID DASHBOARD UTAMA --}}
     <div class="dashboard-grid">
 

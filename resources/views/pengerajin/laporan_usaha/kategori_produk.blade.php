@@ -87,56 +87,16 @@
 @section('content')
 
     {{-- 🔍 FILTER --}}
-    <div class="card card-modern mb-3">
-        <div class="card-body">
-            <form method="GET" action="{{ route('pengerajin.laporan_usaha.kategori-produk') }}">
-                <div class="form-row">
-                    <div class="form-group col-md-3 col-sm-6">
-                        <label style="color:#b8ccdf;">Usaha</label>
-                        <select name="usaha_id" class="form-control">
-                            <option value="">Semua Usaha</option>
-                            @foreach ($usahaList as $usaha)
-                                <option value="{{ $usaha->id }}"
-                                    {{ (string) request('usaha_id') === (string) $usaha->id ? 'selected' : '' }}>
-                                    {{ $usaha->nama_usaha }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group col-md-3 col-sm-6">
-                        <label style="color:#b8ccdf;">Tanggal Mulai</label>
-                        <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
-                    </div>
-
-                    <div class="form-group col-md-3 col-sm-6">
-                        <label style="color:#b8ccdf;">Tanggal Akhir</label>
-                        <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
-                    </div>
-                </div>
-
-                {{-- ✅ Tambah filter periode --}}
-                @include('pengerajin.laporan_usaha.partials.filter_periode')
-
-                <div class="row mt-2">
-                    <div class="form-group col-md-3 col-sm-6" style="margin-top: 4px;">
-                        <button type="submit" class="btn btn-primary btn-block mb-2">
-                            <i class="fa fa-filter"></i> Terapkan
-                        </button>
-                        <a href="{{ route('pengerajin.laporan_usaha.kategori-produk') }}" class="btn btn-secondary btn-block">
-                            <i class="fa fa-sync-alt"></i> Reset
-                        </a>
-
-                        {{-- Optional tombol export --}}
-                        <a href="{{ route('pengerajin.laporan_usaha.kategori-produk.export', request()->query()) }}"
-                            class="btn btn-success btn-block mt-2">
-                            <i class="fa fa-file-excel"></i> Export Excel
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
+    @include('pengerajin.laporan_usaha.filter', [
+        'action' => route('pengerajin.laporan_usaha.transaksi'),
+        'resetUrl' => route('pengerajin.laporan_usaha.transaksi'),
+        'showUsaha' => true,
+        'showKategori' => true,
+        'showStatus' => true,
+        'showDateRange' => true,
+        'showPeriode' => true,
+        'exportRoute' => 'pengerajin.laporan_usaha.transaksi.export',
+    ])
 
 
     {{-- RINGKASAN --}}
