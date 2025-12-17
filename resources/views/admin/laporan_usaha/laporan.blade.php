@@ -6,7 +6,7 @@
     <style>
         /* CSS yang sudah Anda buat, tidak perlu diubah, sudah bagus. */
         body {
-            background: #0b1d39 !important;
+            background: #ffffff !important;
         }
 
         .dashboard-grid {
@@ -20,7 +20,7 @@
             border-radius: 14px !important;
             border: 1px solid rgba(255, 255, 255, 0.05);
             box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
-            color: #e8eef7;
+            color: rgb(244, 244, 244);
             padding: 18px;
             margin-bottom: 16px;
         }
@@ -44,7 +44,7 @@
         }
 
         .report-nav {
-            background: #0f233f;
+            background: #ffffff;
             border-radius: 12px;
             padding: 14px;
             margin-bottom: 18px;
@@ -53,7 +53,7 @@
         .report-nav a {
             display: block;
             padding: 10px 14px;
-            color: #b8ccdf;
+            color: #000000;
             border-radius: 8px;
             font-size: 14px;
             margin-bottom: 6px;
@@ -80,7 +80,7 @@
         }
         /* Memperbaiki header agar terlihat pada background gelap */
         .content-header h1 {
-            color: #e8eef7 !important;
+            color: #000000 !important;
         }
 
         h5 {
@@ -92,7 +92,7 @@
 
 @section('content_header')
     {{-- PERBAIKAN: Hapus style inline dan gunakan CSS di atas --}}
-    <h1>Dashboard Laporan</h1>
+    <h1 style="color:black;">Dashboard Laporan</h1>
 @stop
 
 @section('content')
