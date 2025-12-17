@@ -120,6 +120,7 @@
                         @endforeach
                     </select>
                 </div>
+                
                 {{-- Filter Pengerajin (DISATUKAN DENGAN BUTTON) --}}
                 <div class="form-group col-md-4 col-sm-12" style="margin-top: 24px;">
                     <div class="row">
