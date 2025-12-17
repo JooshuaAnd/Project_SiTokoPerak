@@ -1,61 +1,6 @@
 @extends('pengerajin.layouts.pengerajin')
 @section('title', 'Dashboard Laporan')
 
-@section('css')
-    <style>
-        /* Mengadopsi style AdminLTE agar mirip dengan skema warna gelap Anda */
-        body {
-            background: #0b1d39 !important;
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            gap: 14px;
-        }
-
-        .card-modern {
-            background: #102544 !important;
-            border-radius: 14px !important;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
-            color: #e8eef7;
-            padding: 18px;
-            margin-bottom: 16px;
-        }
-
-        .metric-value {
-            font-size: 30px;
-            font-weight: 700;
-            margin-top: 5px;
-            color: #5ab1f7;
-        }
-
-        .metric-label {
-            font-size: 13px;
-            opacity: .8;
-            text-transform: uppercase;
-            letter-spacing: .04em;
-        }
-
-        .chart-box {
-            height: 260px;
-        }
-
-        .form-control {
-            background-color: #0b1d39;
-            color: #e8eef7;
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
-        h5 {
-            font-size: 15px;
-            margin-bottom: 8px;
-            color: #e8eef7;
-        }
-    </style>
-@stop
-
 @section('content')
 
     {{-- HEADER DAN NAVIGASI --}}
@@ -65,14 +10,14 @@
 
     {{-- 🔍 FILTER GLOBAL (Card yang membungkus semua filter) --}}
     @include('pengerajin.laporan_usaha.filter', [
-        'action' => route('pengerajin.laporan_usaha.transaksi'),
-        'resetUrl' => route('pengerajin.laporan_usaha.transaksi'),
+        'action' => route('pengerajin.laporan_usaha.laporan-views'),
+        'resetUrl' => route('pengerajin.laporan_usaha.laporan-views'),
         'showUsaha' => true,
         'showKategori' => true,
         'showStatus' => true,
         'showDateRange' => true,
         'showPeriode' => true,
-        'exportRoute' => 'pengerajin.laporan_usaha.transaksi.export',
+        'exportRoute' => 'pengerajin.laporan_usaha.laporan-views.export',
     ])
     {{-- GRID DASHBOARD UTAMA --}}
     <div class="dashboard-grid">

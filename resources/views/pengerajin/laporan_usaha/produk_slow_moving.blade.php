@@ -2,108 +2,20 @@
 
 @section('title', 'Produk Slow Moving')
 
-@section('css')
-    <style>
-        body {
-            background: #0b1d39 !important;
-        }
-
-        .card-modern {
-            background: #102544 !important;
-            border-radius: 14px !important;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.35);
-            color: #e8eef7;
-        }
-
-        .report-nav {
-            background: #0f233f;
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 18px;
-        }
-
-        .report-nav a {
-            display: block;
-            padding: 10px 14px;
-            color: #b8ccdf;
-            border-radius: 8px;
-            font-size: 14px;
-            margin-bottom: 6px;
-            text-decoration: none;
-            transition: 0.2s;
-        }
-
-        .report-nav a:hover,
-        .report-nav a.active {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            font-weight: 600;
-        }
-
-        .form-control,
-        .btn {
-            border-radius: 8px !important;
-        }
-
-        .form-control {
-            background-color: #0b1d39;
-            color: #e8eef7;
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .metric-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .06em;
-            opacity: .75;
-        }
-
-        .metric-value {
-            font-size: 22px;
-            font-weight: 700;
-            margin-top: 4px;
-        }
-
-        .badge-soft-warning {
-            background: rgba(255, 206, 86, 0.1);
-            border: 1px solid rgba(255, 206, 86, 0.5);
-            color: #ffce56;
-        }
-
-        .table-dark-custom {
-            background-color: #0f223f;
-            color: #e8eef7;
-        }
-
-        .table-dark-custom thead tr {
-            background-color: #081327;
-        }
-
-        .table-dark-custom tbody tr:hover {
-            background-color: rgba(255, 255, 255, 0.04);
-        }
-
-        #slowMovingChart {
-            max-height: 360px;
-        }
-    </style>
-@stop
-
 @section('content_header')
     <h1 style="color:white; font-weight:600;">Produk Slow Moving</h1>
 @stop
 
 @section('content')
     @include('pengerajin.laporan_usaha.filter', [
-        'action' => route('pengerajin.laporan_usaha.transaksi'),
-        'resetUrl' => route('pengerajin.laporan_usaha.transaksi'),
+        'action' => route('pengerajin.laporan_usaha.produk-slow-moving'),
+        'resetUrl' => route('pengerajin.laporan_usaha.produk-slow-moving'),
         'showUsaha' => true,
         'showKategori' => true,
         'showStatus' => true,
         'showDateRange' => true,
         'showPeriode' => true,
-        'exportRoute' => 'pengerajin.laporan_usaha.transaksi.export',
+        'exportRoute' => 'pengerajin.laporan_usaha.produk-slow-moving.export',
     ])
     {{-- 📊 RINGKASAN --}}
     <div class="row mb-3">

@@ -2,119 +2,6 @@
 
 @section('title', 'Laporan Produk Favorite')
 
-@section('css')
-    <style>
-        body {
-            background: #0b1d39 !important;
-        }
-
-        .card-modern {
-            background: #102544 !important;
-            border-radius: 14px !important;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.35);
-            color: #e8eef7;
-        }
-
-        .report-nav {
-            background: #0f233f;
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 18px;
-        }
-
-        .report-nav a {
-            display: block;
-            padding: 10px 14px;
-            color: #b8ccdf;
-            border-radius: 8px;
-            font-size: 14px;
-            margin-bottom: 6px;
-            text-decoration: none;
-            transition: 0.2s;
-        }
-
-        .report-nav a:hover,
-        .report-nav a.active {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            font-weight: 600;
-        }
-
-        .form-control,
-        .btn {
-            border-radius: 8px !important;
-        }
-
-        .form-control {
-            background-color: #0b1d39;
-            color: #e8eef7;
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .table-dark-custom {
-            background-color: #0f223f;
-            color: #e8eef7;
-        }
-
-        .table-dark-custom thead tr {
-            background-color: #081327;
-        }
-
-        .table-dark-custom tbody tr:hover {
-            background-color: rgba(255, 255, 255, 0.04);
-        }
-
-        .metric-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .06em;
-            opacity: .75;
-        }
-
-        .metric-value {
-            font-size: 22px;
-            font-weight: 700;
-            margin-top: 4px;
-        }
-
-        .badge-soft {
-            background: rgba(255, 99, 132, 0.1);
-            border: 1px solid rgba(255, 99, 132, 0.4);
-            color: #ff6384;
-        }
-
-        .toggle-pill {
-            display: inline-flex;
-            background: #0b1d39;
-            border-radius: 999px;
-            padding: 2px;
-        }
-
-        .toggle-pill button {
-            border: none;
-            background: transparent;
-            color: #b8ccdf;
-            font-size: 13px;
-            padding: 6px 16px;
-            border-radius: 999px;
-            outline: none;
-            cursor: pointer;
-            transition: all .18s ease;
-        }
-
-        .toggle-pill button.active {
-            background: #1f3f72;
-            color: #ffffff;
-            font-weight: 600;
-        }
-
-        #produkFavoriteChart {
-            max-height: 360px;
-        }
-    </style>
-@stop
-
 @section('content_header')
     <h1 style="color:white; font-weight:600;">Laporan Produk Favorite (Like)</h1>
 @stop
@@ -122,14 +9,14 @@
 @section('content')
     {{-- 🔍 FILTER --}}
     @include('pengerajin.laporan_usaha.filter', [
-        'action' => route('pengerajin.laporan_usaha.transaksi'),
-        'resetUrl' => route('pengerajin.laporan_usaha.transaksi'),
+        'action' => route('pengerajin.laporan_usaha.produk-favorite'),
+        'resetUrl' => route('pengerajin.laporan_usaha.produk-favorite'),
         'showUsaha' => true,
         'showKategori' => true,
         'showStatus' => true,
         'showDateRange' => true,
         'showPeriode' => true,
-        'exportRoute' => 'pengerajin.laporan_usaha.transaksi.export',
+        'exportRoute' => 'pengerajin.laporan_usaha.produk-favorite.export',
     ])
 
     {{-- 📊 RINGKASAN --}}
