@@ -9,11 +9,11 @@ use App\Models\Usaha;
 use App\Models\User;
 use App\Models\KategoriProduk;
 use App\Models\Produk;
+use App\Models\Pengerajin;
 use Illuminate\Support\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\PengerajinExport;
 use App\Exports\SimpleCollectionExport;
-
 
 class LaporanUsahaController extends Controller
 {
@@ -23,7 +23,6 @@ class LaporanUsahaController extends Controller
      * - start_date & end_date (filter lama)
      * - defaultLastDays (misal 30 hari terakhir untuk slow moving)
      */
-    
     protected function resolveDateRange(Request $request, ?int $defaultLastDays = null): array
     {
         $periodeType = $request->input('periode_type'); // day, week, month, year atau null
@@ -69,8 +68,6 @@ class LaporanUsahaController extends Controller
                     $endCarbon = Carbon::createFromDate($year, 12, 31)->endOfDay();
                 }
                 break;
-
-            // default: custom pakai start_date & end_date
         }
 
         // fallback kalau semua kosong & ada default (misal 30 hari terakhir)
@@ -82,10 +79,6 @@ class LaporanUsahaController extends Controller
         return [$startCarbon, $endCarbon];
     }
 
-    /* =========================================================================
-     * DASHBOARD UTAMA
-     * ====================================================================== */
-
     /**
      * Dashboard laporan utama
      * URL: /admin/laporan-usaha
@@ -93,7 +86,7 @@ class LaporanUsahaController extends Controller
      */
     public function index(Request $request)
     {
-        // ---------- 1. DATA FILTER (TAHUN / BULAN / USAHA / KATEGORI / USER) ----------
+        // ---------- 1. DATA FILTER ----------
         $currentYear = now()->year;
         $startYear = $currentYear - 5;
 
@@ -117,30 +110,30 @@ class LaporanUsahaController extends Controller
 
         $usahaList = Usaha::all();
         $kategoriList = KategoriProduk::all();
-        // Mengambil daftar User yang berperan sebagai Pengerajin untuk filter
-        $pengerajinList = User::where('role', 'pengerajin')->get();
+        // dropdown untuk admin pilih pengerajin
+        $pengerajinList = Pengerajin::orderBy('nama_pengerajin')->get();
 
-        // ---------- 2. BASE QUERY UTAMA (REVISI RANTAI PENGERAJIN) ----------
-        // Rantai: orders -> order_items -> usaha_produk -> produk -> pengerajin -> users (Pengerajin)
+        // ---------- 2. BASE QUERY UTAMA ----------
+        // Rantai: orders -> order_items -> produk -> usaha_produk -> usaha + kategori
+        //        produk -> pengerajin -> users (akun pengerajin)
         $base = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-            ->join('usaha_produk', 'order_items.usaha_produk_id', '=', 'usaha_produk.id')
-            ->join('produk', 'usaha_produk.produk_id', '=', 'produk.id')
+
+            // order_items -> produk via produk_id
+            ->join('produk', 'produk.id', '=', 'order_items.produk_id')
+
+            // produk -> usaha_produk via produk_id
+            ->join('usaha_produk', 'usaha_produk.produk_id', '=', 'produk.id')
+
             ->leftJoin('kategori_produk', 'produk.kategori_produk_id', '=', 'kategori_produk.id')
-
-            // STEP 4a: produk -> pengerajin (tabel fisik)
             ->leftJoin('pengerajin', 'produk.pengerajin_id', '=', 'pengerajin.id')
-
-            // STEP 4b: pengerajin -> users (Akun Pengerajin, diasumsikan pengerajin.user_id)
             ->leftJoin('users as pengerajin_users', 'pengerajin.user_id', '=', 'pengerajin_users.id')
-
-            // STEP 5: orders -> pembeli (users)
             ->leftJoin('users', 'orders.user_id', '=', 'users.id');
 
-        // Wajib: Hanya hitung produk yang terikat ke pengerajin (filter global)
+        // Hanya produk yang terikat pengerajin
         $base->whereNotNull('produk.pengerajin_id');
 
-        // ---------- 3. APLIKASI FILTER ----------
+        // ---------- 3. FILTER ----------
         if ($request->filled('tahun')) {
             $base->whereYear('orders.created_at', $request->tahun);
         }
@@ -153,12 +146,17 @@ class LaporanUsahaController extends Controller
             $base->where('kategori_produk.id', $request->kategori_id);
         }
 
-        // FILTER BERDASARKAN PENGERAJIN USER ID (pengerajin_users.id)
+        // filter baru: berdasarkan ID pengerajin (tabel pengerajin)
+        if ($request->filled('pengerajin_id')) {
+            $base->where('pengerajin.id', $request->pengerajin_id);
+        }
+
+        // fallback lama: filter lewat akun user pengerajin (kalau masih dipakai di tempat lain)
         if ($request->filled('user_id')) {
             $base->where('pengerajin_users.id', $request->user_id);
         }
 
-        // FILTER USAHA: HANYA PERLU JOIN KE 'USAHA' dan FILTER
+        // filter usaha
         $joinUsahaNeeded = false;
         if ($request->filled('usaha_id')) {
             $base->join('usaha', 'usaha_produk.usaha_id', '=', 'usaha.id')
@@ -166,7 +164,6 @@ class LaporanUsahaController extends Controller
             $joinUsahaNeeded = true;
         }
 
-        // Kloning base query setelah semua filter diaplikasikan
         $baseQuery = clone $base;
 
         // ---------- 4. METRIC ATAS ----------
@@ -178,9 +175,8 @@ class LaporanUsahaController extends Controller
             ->selectRaw('SUM(order_items.quantity * order_items.price_at_purchase) as total')
             ->value('total') ?? 0;
 
-        // ---------- 5. PENDAPATAN PER USAHA (GROUPING) ----------
+        // ---------- 5. PENDAPATAN PER USAHA ----------
         $baseUsahaGroup = clone $base;
-
         if (!$joinUsahaNeeded) {
             $baseUsahaGroup->leftJoin('usaha', 'usaha_produk.usaha_id', '=', 'usaha.id');
         }
@@ -198,9 +194,8 @@ class LaporanUsahaController extends Controller
             'data' => $pendapatanPerUsaha->pluck('total'),
         ];
 
-        // ---------- 5b. PENDAPATAN PER PENGERAJIN (GROUPING) ----------
+        // ---------- 5b. PENDAPATAN PER PENGERAJIN ----------
         $pendapatanPerPengerajin = (clone $baseQuery)
-            // Sekarang menggunakan pengerajin_users.username
             ->selectRaw('pengerajin_users.username, SUM(order_items.quantity * order_items.price_at_purchase) as total')
             ->whereNotNull('pengerajin_users.id')
             ->groupBy('pengerajin_users.id', 'pengerajin_users.username')
@@ -214,8 +209,6 @@ class LaporanUsahaController extends Controller
         ];
 
         // ---------- 6. TOP PRODUK ----------
-        // ... (Logika tetap sama, menggunakan baseQuery)
-
         $topProdukRow = (clone $baseQuery)
             ->selectRaw('produk.nama_produk, SUM(order_items.quantity) as total_qty')
             ->groupBy('produk.id', 'produk.nama_produk')
@@ -236,9 +229,7 @@ class LaporanUsahaController extends Controller
             'data' => $produkTerlaris->pluck('total_qty'),
         ];
 
-        // ---------- 7. TOP USER (Pembeli Aktif) ----------
-        // ... (Logika Pembeli tetap sama)
-
+        // ---------- 7. TOP USER (Pembeli) ----------
         $userAktifRow = (clone $baseQuery)
             ->selectRaw('users.username, COUNT(DISTINCT orders.id) as total_transaksi')
             ->groupBy('users.id', 'users.username')
@@ -260,8 +251,6 @@ class LaporanUsahaController extends Controller
         ];
 
         // ---------- 8. TOP KATEGORI ----------
-        // ... (Logika tetap sama)
-
         $kategoriTerjual = (clone $baseQuery)
             ->selectRaw('kategori_produk.nama_kategori_produk, SUM(order_items.quantity) as total_qty')
             ->groupBy('kategori_produk.id', 'kategori_produk.nama_kategori_produk')
@@ -274,7 +263,7 @@ class LaporanUsahaController extends Controller
             'data' => $kategoriTerjual->pluck('total_qty'),
         ];
 
-        // ---------- 9. PRODUK FAVORITE & VIEWS (Logika tetap sama) ----------
+        // ---------- 9. PRODUK FAVORITE & VIEWS ----------
         $produkFavorite = DB::table('produk_likes as pl')
             ->join('produk as p', 'p.id', '=', 'pl.produk_id')
             ->selectRaw('p.nama_produk, COUNT(pl.id) as total_like')
@@ -301,7 +290,6 @@ class LaporanUsahaController extends Controller
             'data' => $produkViews->pluck('total_view'),
         ];
 
-        // ---------- 10. RETURN ----------
         return view('admin.laporan_usaha.laporan', compact(
             'tahunList',
             'bulanList',
@@ -323,23 +311,22 @@ class LaporanUsahaController extends Controller
     }
 
     /* =========================================================================
-     * KATEGORI PRODUK
+     * BASE QUERIES (FIX mapping: order_items.produk_id)
      * ====================================================================== */
-
-    // File: app/Http/Controllers/Admin/LaporanUsahaController.php
 
     protected function baseKategoriProdukQuery(Request $request, ?Carbon $start, ?Carbon $end)
     {
         $query = DB::table('kategori_produk as k')
             ->leftJoin('produk as p', 'p.kategori_produk_id', '=', 'k.id')
             ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->leftJoin('order_items as oi', 'oi.usaha_produk_id', '=', 'up.id')
-            ->leftJoin('orders as o', 'o.id', '=', 'oi.order_id')
             ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
 
-            // TAMBAHAN: Join Pengerajin untuk filter user_id
+            // oi join ke produk (bukan usaha_produk)
+            ->leftJoin('order_items as oi', 'oi.produk_id', '=', 'p.id')
+            ->leftJoin('orders as o', 'o.id', '=', 'oi.order_id')
+
             ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
-            ->leftJoin('users as pu', 'pengerajin.user_id', '=', 'pu.id'); // Alias pu = Pengerajin User
+            ->leftJoin('users as pu', 'pengerajin.user_id', '=', 'pu.id');
 
         if ($request->filled('usaha_id')) {
             $query->where('u.id', $request->usaha_id);
@@ -351,7 +338,12 @@ class LaporanUsahaController extends Controller
             $query->whereDate('o.created_at', '<=', $end);
         }
 
-        // TAMBAHAN: Filter Pengerajin
+        // filter baru: berdasarkan pengerajin_id
+        if ($request->filled('pengerajin_id')) {
+            $query->where('pengerajin.id', $request->pengerajin_id);
+        }
+
+        // filter lama: berdasarkan user (akun pengerajin)
         if ($request->filled('user_id')) {
             $query->where('pu.id', $request->user_id);
         }
@@ -359,25 +351,21 @@ class LaporanUsahaController extends Controller
         return $query;
     }
 
-    /**
-     * Laporan Kategori Produk
-     */
-    /* =========================================================================
-     * PENDAPATAN PER USAHA
-     * ====================================================================== */
-
     protected function basePendapatanUsahaQuery(Request $request, ?Carbon $start, ?Carbon $end)
     {
         $query = DB::table('orders as o')
             ->join('order_items as oi', 'oi.order_id', '=', 'o.id')
-            ->join('usaha_produk as up', 'up.id', '=', 'oi.usaha_produk_id')
-            ->join('usaha as u', 'u.id', '=', 'up.usaha_id')
-            ->join('produk as p', 'p.id', '=', 'up.produk_id') // Corrected join from up.produk_id
-            ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id')
 
-            // TAMBAHAN: Join ke Pengerajin untuk filter user_id
+            // oi -> produk
+            ->join('produk as p', 'p.id', '=', 'oi.produk_id')
+
+            // produk -> usaha_produk -> usaha
+            ->join('usaha_produk as up', 'up.produk_id', '=', 'p.id')
+            ->join('usaha as u', 'u.id', '=', 'up.usaha_id')
+
+            ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id')
             ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
-            ->leftJoin('users as pu', 'pengerajin.user_id', '=', 'pu.id'); // Alias pu = Pengerajin User
+            ->leftJoin('users as pu', 'pengerajin.user_id', '=', 'pu.id');
 
         if ($request->filled('usaha_id')) {
             $query->where('u.id', $request->usaha_id);
@@ -385,10 +373,15 @@ class LaporanUsahaController extends Controller
         if ($request->filled('kategori_id')) {
             $query->where('k.id', $request->kategori_id);
         }
-        // TAMBAHAN: Filter berdasarkan Pengerajin User
+
+        if ($request->filled('pengerajin_id')) {
+            $query->where('pengerajin.id', $request->pengerajin_id);
+        }
+
         if ($request->filled('user_id')) {
             $query->where('pu.id', $request->user_id);
         }
+
         if ($start) {
             $query->whereDate('o.created_at', '>=', $start);
         }
@@ -398,24 +391,20 @@ class LaporanUsahaController extends Controller
 
         return $query;
     }
-    /**
-     * Laporan Pendapatan Per Usaha
-     */
-
-
-    /* =========================================================================
-     * PRODUK FAVORITE (LIKE)
-     * ====================================================================== */
 
     protected function baseProdukFavoriteQuery(Request $request, ?Carbon $start, ?Carbon $end)
     {
         $query = DB::table('produk as p')
             ->leftJoin('produk_likes as pl', 'pl.produk_id', '=', 'p.id')
             ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id');
+            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id');
 
         if ($request->filled('usaha_id')) {
             $query->where('u.id', $request->usaha_id);
+        }
+        if ($request->filled('pengerajin_id')) {
+            $query->where('pengerajin.id', $request->pengerajin_id);
         }
         if ($start) {
             $query->whereDate('pl.created_at', '>=', $start);
@@ -427,21 +416,15 @@ class LaporanUsahaController extends Controller
         return $query;
     }
 
-    /**
-     * Laporan Produk Favorite (Like)
-     */
-    /* =========================================================================
-     * PRODUK SLOW MOVING
-     * ====================================================================== */
-
     protected function baseProdukSlowMovingQuery(Request $request, ?string $start, ?string $end, int $threshold)
     {
         $query = DB::table('produk as p')
             ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id')
             ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
             ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
             ->leftJoin('order_items as oi', function ($join) use ($start, $end) {
-                $join->on('oi.usaha_produk_id', '=', 'up.id');
+                $join->on('oi.produk_id', '=', 'p.id');
                 if ($start) {
                     $join->whereDate('oi.created_at', '>=', $start);
                 }
@@ -455,6 +438,9 @@ class LaporanUsahaController extends Controller
         }
         if ($request->filled('kategori_id')) {
             $query->where('k.id', $request->kategori_id);
+        }
+        if ($request->filled('pengerajin_id')) {
+            $query->where('pengerajin.id', $request->pengerajin_id);
         }
 
         $query->groupBy('p.id', 'p.nama_produk', 'u.id', 'u.nama_usaha')
@@ -471,26 +457,19 @@ class LaporanUsahaController extends Controller
         return $query;
     }
 
-    /**
-     * Laporan Produk Slow Moving
-     */
-
-    /* =========================================================================
-     * PRODUK TERLARIS
-     * ====================================================================== */
-
     protected function baseProdukTerlarisQuery(Request $request, ?Carbon $start, ?Carbon $end)
     {
         $query = DB::table('order_items as oi')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
-            ->join('usaha_produk as up', 'up.id', '=', 'oi.usaha_produk_id')
+
+            // oi -> produk
+            ->join('produk as p', 'p.id', '=', 'oi.produk_id')
+
+            // produk -> usaha_produk -> usaha
+            ->join('usaha_produk as up', 'up.produk_id', '=', 'p.id')
             ->join('usaha as us', 'us.id', '=', 'up.usaha_id')
 
-            // REVISI KRITIS: Join ke Produk harus dari usaha_produk
-            ->join('produk as p', 'p.id', '=', 'up.produk_id');
-
-        // TAMBAHAN: Join Pengerajin untuk filter user_id
-        $query->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
             ->leftJoin('users as pu', 'pengerajin.user_id', '=', 'pu.id');
 
         if ($request->filled('usaha_id')) {
@@ -499,7 +478,9 @@ class LaporanUsahaController extends Controller
         if ($request->filled('kategori_id')) {
             $query->where('p.kategori_produk_id', $request->kategori_id);
         }
-        // TAMBAHAN: Filter Pengerajin
+        if ($request->filled('pengerajin_id')) {
+            $query->where('pengerajin.id', $request->pengerajin_id);
+        }
         if ($request->filled('user_id')) {
             $query->where('pu.id', $request->user_id);
         }
@@ -512,23 +493,20 @@ class LaporanUsahaController extends Controller
 
         return $query;
     }
-    /**
-     * Laporan Produk Terlaris
-     */
-
-    /* =========================================================================
-     * PRODUK VIEWS
-     * ====================================================================== */
 
     protected function baseProdukViewsQuery(Request $request, ?Carbon $start, ?Carbon $end)
     {
         $viewsQuery = DB::table('produk as p')
             ->join('produk_views as pv', 'pv.produk_id', '=', 'p.id')
             ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id');
+            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id');
 
         if ($request->filled('usaha_id')) {
             $viewsQuery->where('u.id', $request->usaha_id);
+        }
+        if ($request->filled('pengerajin_id')) {
+            $viewsQuery->where('pengerajin.id', $request->pengerajin_id);
         }
         if ($start) {
             $viewsQuery->whereDate('pv.created_at', '>=', $start);
@@ -540,28 +518,28 @@ class LaporanUsahaController extends Controller
         return $viewsQuery;
     }
 
-    /**
-     * Laporan Views Produk
-     */
-
-    /* =========================================================================
-     * TRANSAKSI PER USER
-     * ====================================================================== */
-
     protected function baseTransaksiUserQuery(Request $request, ?Carbon $start, ?Carbon $end)
     {
         $query = DB::table('orders as o')
             ->join('users as u', 'u.id', '=', 'o.user_id')
             ->join('order_items as oi', 'oi.order_id', '=', 'o.id')
-            ->join('usaha_produk as up', 'up.id', '=', 'oi.usaha_produk_id')
+
+            // oi -> produk
+            ->join('produk as p', 'p.id', '=', 'oi.produk_id')
+
+            // produk -> usaha
+            ->join('usaha_produk as up', 'up.produk_id', '=', 'p.id')
             ->join('usaha as us', 'us.id', '=', 'up.usaha_id')
-            ->join('produk as p', 'p.id', '=', 'oi.produk_id');
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id');
 
         if ($request->filled('usaha_id')) {
             $query->where('us.id', $request->usaha_id);
         }
         if ($request->filled('kategori_id')) {
             $query->where('p.kategori_produk_id', $request->kategori_id);
+        }
+        if ($request->filled('pengerajin_id')) {
+            $query->where('pengerajin.id', $request->pengerajin_id);
         }
         if ($start) {
             $query->whereDate('o.created_at', '>=', $start);
@@ -573,23 +551,24 @@ class LaporanUsahaController extends Controller
         return $query;
     }
 
-    /**
-     * Laporan Transaksi Per User
-     */
-
-    /* =========================================================================
-     * SEMUA TRANSAKSI
-     * ====================================================================== */
-
     protected function baseTransaksiQuery(Request $request, ?Carbon $start, ?Carbon $end)
     {
         $base = DB::table('orders as o')
             ->leftJoin('users as u', 'u.id', '=', 'o.user_id')
             ->leftJoin('order_items as oi', 'oi.order_id', '=', 'o.id')
-            ->leftJoin('usaha_produk as up', 'up.id', '=', 'oi.usaha_produk_id')
-            ->leftJoin('usaha as us', 'us.id', '=', 'up.usaha_id')
+
+            // oi -> produk
             ->leftJoin('produk as p', 'p.id', '=', 'oi.produk_id')
-            ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id');
+
+            // produk -> usaha
+            ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
+            ->leftJoin('usaha as us', 'us.id', '=', 'up.usaha_id')
+
+            ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id')
+
+            // pengerajin mapping
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->leftJoin('users as pu', 'pengerajin.user_id', '=', 'pu.id');
 
         if ($request->filled('usaha_id')) {
             $base->where('us.id', $request->usaha_id);
@@ -597,9 +576,16 @@ class LaporanUsahaController extends Controller
         if ($request->filled('kategori_id')) {
             $base->where('k.id', $request->kategori_id);
         }
-        if ($request->filled('user_id')) {
-            $base->where('u.id', $request->user_id);
+
+        if ($request->filled('pengerajin_id')) {
+            $base->where('pengerajin.id', $request->pengerajin_id);
         }
+
+        // filter lama: user_id = akun pengerajin
+        if ($request->filled('user_id')) {
+            $base->where('pu.id', $request->user_id);
+        }
+
         if ($request->filled('status')) {
             $base->where('o.status', $request->status);
         }
@@ -613,20 +599,9 @@ class LaporanUsahaController extends Controller
         return $base;
     }
 
-    /**
-     * Laporan Semua Transaksi
-     */
-
-
-    /* =========================================================================
-     * EXPORT PENGERAJIN (DARI CONTROLLER LAMA)
-     * ====================================================================== */
-
-    //belum dipakai
-
+    // belum dipakai
     public function exportPengerajin()
     {
         return Excel::download(new PengerajinExport, 'pengerajin.xlsx');
     }
 }
-

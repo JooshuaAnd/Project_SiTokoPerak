@@ -14,8 +14,6 @@
         'showUsaha' => true,
         'showKategori' => true,
         'showStatus' => true,
-        'showDateRange' => true,
-        'showPeriode' => true,
         'exportRoute' => 'pengerajin.laporan_usaha.kategori-produk.export',
     ])
     {{-- RINGKASAN --}}

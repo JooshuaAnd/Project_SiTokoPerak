@@ -11,7 +11,7 @@
     $showKategori = $showKategori ?? true;
     $showStatus = $showStatus ?? true;
     $showDateRange = $showDateRange ?? false;
-    $showPeriode = $showPeriode ?? true;
+    $showPeriode = $showPeriode ?? false;
     $showPengerajin = $showPengerajin ?? true;
 @endphp
 <div class="card card-modern mb-3">
@@ -53,9 +53,9 @@
                 {{-- 🔹 Filter Usaha --}}
                 @if ($showUsaha && isset($usahaList))
                     <div class="form-group col-md-3 col-sm-6">
-                        <label style="color:#b8ccdf;">Usaha</label>
-                        <select name="usaha_id" class="form-control">
-                            <option value="">Semua Usaha</option>
+                        <label style="color:#ecf0f1; font-weight: 600;">Usaha</label>
+                        <select name="usaha_id" class="form-control" style="background-color: #4a627a; color: #ecf0f1; border: 1px solid #5a7b9b; border-radius: 4px;">
+                            <option value="" style="background-color: #34495e;">Semua Usaha</option>
                             @foreach ($usahaList as $usaha)
                                 <option value="{{ $usaha->id }}"
                                     {{ (string) request('usaha_id') === (string) $usaha->id ? 'selected' : '' }}>
@@ -69,9 +69,9 @@
                 {{-- 🔹 Filter Kategori --}}
                 @if ($showKategori && isset($kategoriList))
                     <div class="form-group col-md-3 col-sm-6">
-                        <label style="color:#b8ccdf;">Kategori</label>
-                        <select name="kategori_id" class="form-control">
-                            <option value="">Semua</option>
+                        <label style="color:#ecf0f1; font-weight: 600;">Kategori</label>
+                        <select name="kategori_id" class="form-control" style="background-color: #4a627a; color: #ecf0f1; border: 1px solid #5a7b9b; border-radius: 4px;">
+                            <option value="" style="background-color: #34495e;">Semua</option>
                             @foreach ($kategoriList as $kategori)
                                 <option value="{{ $kategori->id }}"
                                     {{ (string) request('kategori_id') === (string) $kategori->id ? 'selected' : '' }}>
@@ -85,9 +85,9 @@
                 {{-- 🔹 Filter Status (buat halaman transaksi) --}}
                 @if ($showStatus && isset($statusList))
                     <div class="form-group col-md-2 col-sm-6">
-                        <label style="color:#b8ccdf;">Status</label>
-                        <select name="status" class="form-control">
-                            <option value="">Semua</option>
+                        <label style="color:#ecf0f1; font-weight: 600;">Status</label>
+                        <select name="status" class="form-control" style="background-color: #4a627a; color: #ecf0f1; border: 1px solid #5a7b9b; border-radius: 4px;">
+                            <option value="" style="background-color: #34495e;">Semua</option>
                             @foreach ($statusList as $status)
                                 <option value="{{ $status }}"
                                     {{ request('status') === $status ? 'selected' : '' }}>
@@ -101,9 +101,9 @@
                 {{-- 🔹 Filter Pengerajin (rekan satu toko) --}}
                 @if ($showPengerajin && isset($pengerajinList) && $pengerajinList->count())
                     <div class="form-group col-md-3 col-sm-6">
-                        <label style="color:#b8ccdf;">Pengerajin</label>
-                        <select name="pengerajin_id" class="form-control">
-                            <option value="">Semua Pengerajin</option>
+                        <label style="color:#ecf0f1; font-weight: 600;">Pengerajin</label>
+                        <select name="pengerajin_id" class="form-control" style="background-color: #4a627a; color: #ecf0f1; border: 1px solid #5a7b9b; border-radius: 4px;">
+                            <option value="" style="background-color: #34495e;">Semua Pengerajin</option>
                             @foreach ($pengerajinList as $u)
                                 <option value="{{ $u->id }}"
                                     {{ (string) request('pengerajin_id') === (string) $u->id ? 'selected' : '' }}>
@@ -133,29 +133,17 @@
                 @include('pengerajin.laporan_usaha.partials.filter_periode')
             @endif
 
-            {{-- 🔹 Tombol --}}
-            <div class="row mt-2">
-                <div class="form-group col-md-4 col-sm-12" style="margin-top: 4px;">
-                    <div class="row">
-                        <div class="col-6">
-                            <button type="submit" class="btn btn-primary btn-block mb-2" name="apply_filters" value="1">
-                                <i class="fa fa-filter"></i> Terapkan
-                            </button>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ $resetUrl }}" class="btn btn-secondary btn-block mb-2">
-                                <i class="fa fa-sync-alt"></i> Reset
-                            </a>
-                        </div>
-                    </div>
-
-                    {{-- 🔹 Tombol Export (opsional) --}}
-                    @isset($exportRoute)
-                        <a href="{{ route($exportRoute, request()->query()) }}" class="btn btn-success btn-block mt-2">
-                            <i class="fa fa-file-excel"></i> Export Excel
-                        </a>
-                    @endisset
-                </div>
+            {{-- Tombol Terapkan, Export, Reset --}}
+            <div class="col-12 d-flex justify-content-end mt-3">
+                <button type="submit" class="btn btn-primary mr-2"><i class="fas fa-filter"></i> Terapkan</button>
+                @isset($exportRoute)
+                    <a href="{{ route($exportRoute, request()->query()) }}" class="btn btn-success mr-2">
+                        <i class="fas fa-file-export"></i> Export
+                    </a>
+                @endisset
+                <a href="{{ $resetUrl }}" class="btn btn-secondary">
+                    <i class="fas fa-redo"></i> Reset
+                </a>
             </div>
         </form>
     </div>

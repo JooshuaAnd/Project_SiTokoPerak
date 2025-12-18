@@ -2,174 +2,19 @@
 
 @section('title', 'Laporan Produk Favorite')
 
-@section('css')
-    <style>
-        body {
-            background: #0b1d39 !important;
-        }
-
-        .card-modern {
-            background: #102544 !important;
-            border-radius: 14px !important;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.35);
-            color: #e8eef7;
-        }
-
-        .report-nav {
-            background: #0f233f;
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 18px;
-        }
-
-        .report-nav a {
-            display: block;
-            padding: 10px 14px;
-            color: #b8ccdf;
-            border-radius: 8px;
-            font-size: 14px;
-            margin-bottom: 6px;
-            text-decoration: none;
-            transition: 0.2s;
-        }
-
-        .report-nav a:hover,
-        .report-nav a.active {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            font-weight: 600;
-        }
-
-        .form-control,
-        .btn {
-            border-radius: 8px !important;
-        }
-
-        .form-control {
-            background-color: #0b1d39;
-            color: #e8eef7;
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .table-dark-custom {
-            background-color: #0f223f;
-            color: #e8eef7;
-        }
-
-        .table-dark-custom thead tr {
-            background-color: #081327;
-        }
-
-        .table-dark-custom tbody tr:hover {
-            background-color: rgba(255, 255, 255, 0.04);
-        }
-
-        .metric-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .06em;
-            opacity: .75;
-        }
-
-        .metric-value {
-            font-size: 22px;
-            font-weight: 700;
-            margin-top: 4px;
-        }
-
-        .badge-soft {
-            background: rgba(255, 99, 132, 0.1);
-            border: 1px solid rgba(255, 99, 132, 0.4);
-            color: #ff6384;
-        }
-
-        .toggle-pill {
-            display: inline-flex;
-            background: #0b1d39;
-            border-radius: 999px;
-            padding: 2px;
-        }
-
-        .toggle-pill button {
-            border: none;
-            background: transparent;
-            color: #b8ccdf;
-            font-size: 13px;
-            padding: 6px 16px;
-            border-radius: 999px;
-            outline: none;
-            cursor: pointer;
-            transition: all .18s ease;
-        }
-
-        .toggle-pill button.active {
-            background: #1f3f72;
-            color: #ffffff;
-            font-weight: 600;
-        }
-
-        #produkFavoriteChart {
-            max-height: 360px;
-        }
-    </style>
-@stop
-
-@section('content_header')
-    <h1 style="color:black; font-weight:600;">Laporan Produk Favorite (Like)</h1>
-@stop
-
 @section('content')
     {{-- 🔍 FILTER --}}
-    <div class="card-modern mb-3">
-        <div class="card-body">
-            <form method="GET" action="{{ route('admin.laporan_usaha.produk-favorite') }}">
-                <div class="row">
-                    <div class="form-group col-md-3 col-sm-6">
-                        <label style="color:#b8ccdf;">Usaha</label>
-                        <select name="usaha_id" class="form-control">
-                            <option value="">Semua Usaha</option>
-                            @foreach ($usahaList as $usaha)
-                                <option value="{{ $usaha->id }}"
-                                    {{ (string) request('usaha_id') === (string) $usaha->id ? 'selected' : '' }}>
-                                    {{ $usaha->nama_usaha }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group col-md-3 col-sm-6">
-                        <label style="color:#b8ccdf;">Start Date</label>
-                        <input type="date" name="start_date" class="form-control" value="{{ request('start_date') }}">
-                    </div>
-
-                    <div class="form-group col-md-3 col-sm-6">
-                        <label style="color:#b8ccdf;">End Date</label>
-                        <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
-                    </div>
-                </div>
-
-                {{-- ✅ Tambah filter periode --}}
-                @include('admin.laporan_usaha.partials.filter_periode')
-
-                <div class="row mt-2">
-                    <div class="form-group col-md-3 col-sm-6" style="margin-top: 24px;">
-                        <button type="submit" class="btn btn-primary btn-block mb-2">
-                            <i class="fa fa-filter"></i> Terapkan
-                        </button>
-                        <a href="{{ route('admin.laporan_usaha.produk-favorite') }}" class="btn btn-secondary btn-block">
-                            <i class="fa fa-sync-alt"></i> Reset
-                        </a>
-
-                        <a href="{{ route('admin.laporan_usaha.produk-favorite.export', request()->query()) }}"
-                            class="btn btn-success btn-block mt-2">
-                            <i class="fa fa-file-excel"></i> Export Excel
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
+    @include('admin.laporan_usaha.filter', [
+        'action' => route('admin.laporan_usaha.produk-favorite'),
+        'resetUrl' => route('admin.laporan_usaha.produk-favorite'),
+        'showUsaha' => true,
+        'showKategori' => true,
+        'showStatus' => true,
+        'showDateRange' => true,
+        'showPeriode' => true,
+        'showPengerajin' => true,
+        'exportRoute' => 'admin.laporan_usaha.produk-favorite.export',
+    ])
 
     {{-- 📊 RINGKASAN --}}
     @php
