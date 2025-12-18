@@ -4,17 +4,16 @@
 
 @section('content')
 
-    {{-- FILTER GLOBAL + EXPORT --}}
+    {{-- FILTER GLOBAL --}}
     @include('admin.laporan_usaha.filter', [
         'action' => route('admin.laporan_usaha.index'),
         'resetUrl' => route('admin.laporan_usaha.index'),
         'showUsaha' => true,
         'showKategori' => true,
         'showPengerajin' => true,
-        'showDateRange' => false, // Tidak ditampilkan di sini, tapi bisa diaktifkan
-        'showPeriode' => true, // Tidak ditampilkan di sini, tapi bisa diaktifkan
-        'showStatus' => false, // Tidak ditampilkan di sini, tapi bisa diaktifkan
-        // 'exportRoute' => 'admin.laporan_usaha.export', // Jika ada route export
+        'showDateRange' => false, // dashboard pakai periode_type saja
+        'showPeriode' => true,
+        'showStatus' => false,
     ])
 
     {{-- GRID DASHBOARD --}}
@@ -47,22 +46,30 @@
             </div>
         </div>
 
-        {{-- BAR PENDAPATAN --}}
-        {{-- BAGIAN 1: PENDAPATAN PER USAHA (Span 6) --}}
+        {{-- PENDAPATAN TOP 3 USAHA --}}
         <div class="card-modern" style="grid-column: span 6;">
             <h5>💰 Pendapatan Top 3 Usaha</h5>
             <div class="chart-box"><canvas id="chartPendapatan"></canvas></div>
         </div>
 
-        {{-- BAGIAN 2: PENDAPATAN PER PENGERAJIN (Span 6) --}}
-        {{-- KITA GANTI TOP KATEGORI AGAR BERdampingan DENGAN CHART BAR PENGERAJIN --}}
+        {{-- PENDAPATAN TOP 3 PENGERAJIN --}}
         <div class="card-modern" style="grid-column: span 6;">
             <h5>👷‍♂️ Pendapatan Top 3 Pengerajin</h5>
-            {{-- ID CANVAS BARU --}}
             <div class="chart-box"><canvas id="chartPendapatanPengerajin"></canvas></div>
         </div>
 
-        {{-- KITA GESER TOP KATEGORI AGAR MENGGUNAKAN GRID YANG LEBIH BAIK --}}
+        {{-- PERFORMA PENJUALAN 5 USAHA TERATAS (LINE) --}}
+        <div class="card-modern" style="grid-column: span 12;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <h5 class="mb-0">📈 Performa Penjualan 5 Usaha Teratas</h5>
+                @if ($periodeLabel)
+                    <span style="font-size: 12px; opacity:.8;">Periode: {{ $periodeLabel }}</span>
+                @endif
+            </div>
+            <div class="chart-box"><canvas id="chartPerforma"></canvas></div>
+        </div>
+
+        {{-- TOP 3 KATEGORI --}}
         <div class="card-modern" style="grid-column: span 4;">
             <h5>📦 Top 3 Kategori Produk (Total Terjual)</h5>
             <div class="chart-box"><canvas id="chartKategori"></canvas></div>
@@ -98,9 +105,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let data = {
-            // PERBAIKAN 1: Tambahkan data Pengerajin
             pendapatan: @json($pendapatanChart ?? ['labels' => [], 'data' => []]),
             pendapatanPengerajin: @json($pendapatanPengerajinChart ?? ['labels' => [], 'data' => []]),
+            performa: @json($performaPenjualanChart ?? ['labels' => [], 'datasets' => []]),
             terlaris: @json($produkTerlarisChart ?? ['labels' => [], 'data' => []]),
             favorite: @json($produkFavoriteChart ?? ['labels' => [], 'data' => []]),
             views: @json($produkViewChart ?? ['labels' => [], 'data' => []]),
@@ -110,7 +117,8 @@
 
         const primaryColors = ['#5ab1f7', '#7bd2f6', '#32a852', '#f6931d', '#9b59b6', '#3498db'];
 
-        function chart(id, type, labels, dataset, horizontal = false) {
+        // Chart helper utk bar / doughnut
+        function chartBasic(id, type, labels, dataset, horizontal = false) {
             if (!labels || labels.length === 0) {
                 const el = document.getElementById(id);
                 if (el) el.parentNode.innerHTML =
@@ -121,7 +129,7 @@
             const el = document.getElementById(id);
             if (!el) return;
 
-            let chartOptions = {
+            let options = {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
@@ -130,52 +138,49 @@
                         labels: {
                             color: '#b8ccdf'
                         }
-                    }
+                    },
+                    tooltip: {}
                 },
-                scales: (type === 'doughnut') ?
-                    {} :
-                    {
-                        x: {
-                            ticks: {
-                                color: '#b8ccdf'
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.08)'
-                            }
+                scales: (type === 'doughnut') ? {} : {
+                    x: {
+                        ticks: {
+                            color: '#b8ccdf'
                         },
-                        y: {
-                            ticks: {
-                                color: '#b8ccdf'
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.08)'
-                            }
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.08)'
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#b8ccdf'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.08)'
                         }
                     }
+                }
             };
 
             if (horizontal && type === 'bar') {
-                chartOptions.indexAxis = 'y';
+                options.indexAxis = 'y';
             }
 
-            // PERBAIKAN 2: Gunakan ID chartPendapatan DAN chartPendapatanPengerajin untuk Custom Rupiah
+            // Khusus chart pendapatan, pakai format Rupiah
             if (id === 'chartPendapatan' || id === 'chartPendapatanPengerajin') {
-                chartOptions.scales.y.ticks.callback = function(value) {
+                options.scales.y.ticks.callback = function(value) {
                     if (value >= 1000000000) return 'Rp' + (value / 1000000000).toFixed(1) + ' M';
                     if (value >= 1000000) return 'Rp' + (value / 1000000).toFixed(1) + ' Jt';
                     if (value >= 1000) return 'Rp' + (value / 1000).toFixed(0) + ' Rb';
                     return 'Rp' + value;
                 };
-                chartOptions.plugins.tooltip = {
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) label += ': ';
-                            if (context.parsed.y !== null) {
-                                label += 'Rp ' + context.parsed.y.toLocaleString('id-ID');
-                            }
-                            return label;
+                options.plugins.tooltip.callbacks = {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) label += ': ';
+                        if (context.parsed.y !== null) {
+                            label += 'Rp ' + context.parsed.y.toLocaleString('id-ID');
                         }
+                        return label;
                     }
                 };
             }
@@ -193,23 +198,106 @@
                     labels: labels,
                     datasets: datasets
                 },
-                options: chartOptions
+                options: options
             });
         }
 
-        // Inisialisasi grafik
+        // Chart helper utk line multi-usaha (performa penjualan)
+        function chartPerformaLine(id, labels, datasetsConfig) {
+            if (!labels || labels.length === 0 || !datasetsConfig || datasetsConfig.length === 0) {
+                const el = document.getElementById(id);
+                if (el) el.parentNode.innerHTML =
+                    '<p style="text-align:center; opacity:0.6; padding-top: 50px;">Tidak ada data untuk filter ini.</p>';
+                return;
+            }
 
-        // PERBAIKAN 3: Inisialisasi Chart Pendapatan Pengerajin
-        chart('chartPendapatan', 'bar', data.pendapatan.labels, data.pendapatan.data, false);
-        chart('chartPendapatanPengerajin', 'bar', data.pendapatanPengerajin.labels, data.pendapatanPengerajin.data, false);
+            const el = document.getElementById(id);
+            if (!el) return;
 
-        // Kategori diubah dari span 4 (Donut) agar berdampingan dengan chart bar
-        chart('chartKategori', 'doughnut', data.kategori.labels, data.kategori.data, false);
+            const datasets = datasetsConfig.map((ds, idx) => ({
+                label: ds.label,
+                data: ds.data,
+                borderColor: primaryColors[idx % primaryColors.length],
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 3,
+                pointHoverRadius: 4,
+                fill: false,
+            }));
+
+            new Chart(el, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#b8ccdf'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label ? context.dataset.label + ': ' : '';
+                                    const value = context.parsed.y ?? 0;
+                                    return label + 'Rp ' + value.toLocaleString('id-ID');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#b8ccdf'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.06)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#b8ccdf',
+                                callback: function(value) {
+                                    if (value >= 1000000000) return 'Rp' + (value / 1000000000).toFixed(1) +
+                                        ' M';
+                                    if (value >= 1000000) return 'Rp' + (value / 1000000).toFixed(1) + ' Jt';
+                                    if (value >= 1000) return 'Rp' + (value / 1000).toFixed(0) + ' Rb';
+                                    return 'Rp' + value;
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.06)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Inisialisasi chart2
+
+        // Pendapatan usaha & pengerajin
+        chartBasic('chartPendapatan', 'bar', data.pendapatan.labels, data.pendapatan.data, false);
+        chartBasic('chartPendapatanPengerajin', 'bar', data.pendapatanPengerajin.labels, data.pendapatanPengerajin.data,
+            false);
+
+        // Performa penjualan (line)
+        chartPerformaLine('chartPerforma', data.performa.labels, data.performa.datasets);
+
+        // Kategori (donut)
+        chartBasic('chartKategori', 'doughnut', data.kategori.labels, data.kategori.data, false);
 
         // Chart lainnya (horizontal bar)
-        chart('chartTerlaris', 'bar', data.terlaris.labels, data.terlaris.data, true);
-        chart('chartFavorite', 'bar', data.favorite.labels, data.favorite.data, true);
-        chart('chartViews', 'bar', data.views.labels, data.views.data, true);
-        chart('chartUser', 'bar', data.user.labels, data.user.data, true);
+        chartBasic('chartTerlaris', 'bar', data.terlaris.labels, data.terlaris.data, true);
+        chartBasic('chartFavorite', 'bar', data.favorite.labels, data.favorite.data, true);
+        chartBasic('chartViews', 'bar', data.views.labels, data.views.data, true);
+        chartBasic('chartUser', 'bar', data.user.labels, data.user.data, true);
     </script>
 @stop

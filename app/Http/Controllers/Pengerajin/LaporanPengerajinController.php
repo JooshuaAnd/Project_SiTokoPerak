@@ -23,10 +23,14 @@ class LaporanPengerajinController extends Controller
     protected function getPengerajinContext(): array
     {
         $userId = Auth::id();
-        if (!Auth::check() || !$userId) abort(401, 'Silakan login.');
+        if (!Auth::check() || !$userId) {
+            abort(401, 'Silakan login.');
+        }
 
         $pengerajin = Pengerajin::where('user_id', $userId)->first();
-        if (!$pengerajin) abort(403, 'Akses ditolak. Akun Anda tidak terdaftar sebagai Pengerajin aktif.');
+        if (!$pengerajin) {
+            abort(403, 'Akses ditolak. Akun Anda tidak terdaftar sebagai Pengerajin aktif.');
+        }
 
         $pengerajinId = (int) $pengerajin->id;
 
@@ -36,7 +40,9 @@ class LaporanPengerajinController extends Controller
             ->map(fn($id) => (int) $id)
             ->toArray();
 
-        if (empty($usahaIds)) abort(403, 'Akses ditolak. Pengerajin ini belum dipetakan ke usaha manapun.');
+        if (empty($usahaIds)) {
+            abort(403, 'Akses ditolak. Pengerajin ini belum dipetakan ke usaha manapun.');
+        }
 
         return [$pengerajinId, $usahaIds];
     }
@@ -56,6 +62,12 @@ class LaporanPengerajinController extends Controller
             ->get();
     }
 
+    /**
+     * Baca pilihan "Pengerajin" di filter:
+     * - Kalau dipilih id tertentu → pakai itu
+     * - Kalau klik "Terapkan" tapi kosong → artinya "semua pengerajin"
+     * - Kalau halaman baru dibuka tanpa apply_filters → default ke pengerajin login
+     */
     protected function resolveFilterPengerajinId(Request $request, int $loginPengerajinId, array $usahaIds): ?int
     {
         if ($request->filled('pengerajin_id')) {
@@ -66,21 +78,29 @@ class LaporanPengerajinController extends Controller
                 ->where('pengerajin_id', $id)
                 ->exists();
 
-            if (!$allowed) abort(403, 'Pengerajin tidak valid untuk usaha ini.');
+            if (!$allowed) {
+                abort(403, 'Pengerajin tidak valid untuk usaha ini.');
+            }
+
             return $id;
         }
 
+        // Kalau user klik "Terapkan" tapi dropdown kosong → tampilkan semua
         if ($request->has('apply_filters')) {
-            return null; // SEMUA
+            return null;
         }
 
+        // Default: hanya data pengerajin yang login
         $request->merge(['pengerajin_id' => $loginPengerajinId]);
         return $loginPengerajinId;
     }
 
     protected function applyPengerajinFilter(Builder $q, ?int $filterPengerajinId, string $pAlias = 'p'): Builder
     {
-        if (!$filterPengerajinId) return $q;
+        if (!$filterPengerajinId) {
+            return $q;
+        }
+
         return $q->where("$pAlias.pengerajin_id", $filterPengerajinId);
     }
 
@@ -109,18 +129,20 @@ class LaporanPengerajinController extends Controller
                 if ($request->filled('periode_week')) {
                     try {
                         [$year, $week] = explode('-W', $request->input('periode_week'));
-                        $tmp = Carbon::now()->setISODate((int)$year, (int)$week);
+                        $tmp = Carbon::now()->setISODate((int) $year, (int) $week);
                         $startCarbon = $tmp->copy()->startOfDay();
                         $endCarbon = $tmp->copy()->endOfWeek();
-                    } catch (\Throwable $e) {}
+                    } catch (\Throwable $e) {
+                        // abaikan, jatuh ke fallback
+                    }
                 }
                 break;
 
             case 'month':
                 if ($request->filled('periode_year') && $request->filled('periode_month')) {
                     $startCarbon = Carbon::createFromDate(
-                        (int)$request->input('periode_year'),
-                        (int)$request->input('periode_month'),
+                        (int) $request->input('periode_year'),
+                        (int) $request->input('periode_month'),
                         1
                     )->startOfDay();
                     $endCarbon = $startCarbon->copy()->endOfMonth();
@@ -129,13 +151,14 @@ class LaporanPengerajinController extends Controller
 
             case 'year':
                 if ($request->filled('periode_year')) {
-                    $year = (int)$request->input('periode_year');
+                    $year = (int) $request->input('periode_year');
                     $startCarbon = Carbon::createFromDate($year, 1, 1)->startOfDay();
                     $endCarbon = Carbon::createFromDate($year, 12, 31)->endOfDay();
                 }
                 break;
         }
 
+        // Kalau semuanya kosong & ada defaultLastDays → pakai X hari terakhir
         if (!$startCarbon && !$endCarbon && $defaultLastDays) {
             $endCarbon = Carbon::now()->endOfDay();
             $startCarbon = $endCarbon->copy()->subDays($defaultLastDays - 1)->startOfDay();
@@ -145,16 +168,16 @@ class LaporanPengerajinController extends Controller
     }
 
     // =========================================================================
-    // BASE QUERY UTAMA (FIX: no usaha_produk, no oi.usaha_produk_id)
+    // BASE QUERY UTAMA
     // =========================================================================
-    protected function baseQueryPengerajin(Request $request): Builder
-    {
-        [$loginPengerajinId, $usahaIds] = $this->getPengerajinContext();
-        $filterPengerajinId = $this->resolveFilterPengerajinId($request, $loginPengerajinId, $usahaIds);
-
-        $hasSimplePeriode = $request->filled('tahun') || $request->filled('bulan');
-        [$start, $end] = $this->resolveDateRange($request, $hasSimplePeriode ? null : 30);
-
+    protected function baseQueryPengerajin(
+        Request $request,
+        int $loginPengerajinId,
+        array $usahaIds,
+        ?int $filterPengerajinId,
+        ?Carbon $start,
+        ?Carbon $end
+    ): Builder {
         $base = DB::table('orders as o')
             ->join('order_items as oi', 'o.id', '=', 'oi.order_id')
             ->join('produk as p', 'p.id', '=', 'oi.produk_id')
@@ -164,58 +187,103 @@ class LaporanPengerajinController extends Controller
             ->join('usaha as us', 'us.id', '=', 'map.usaha_id')
             ->whereIn('map.usaha_id', $usahaIds);
 
+        // Filter by pengerajin (login / rekan / semua)
         $base = $this->applyPengerajinFilter($base, $filterPengerajinId, 'p');
 
-        if ($start) $base->whereDate('o.created_at', '>=', $start);
-        if ($end) $base->whereDate('o.created_at', '<=', $end);
+        // Filter tanggal
+        if ($start) {
+            $base->whereDate('o.created_at', '>=', $start);
+        }
+        if ($end) {
+            $base->whereDate('o.created_at', '<=', $end);
+        }
 
-        if ($request->filled('tahun')) $base->whereYear('o.created_at', $request->tahun);
-        if ($request->filled('bulan')) $base->whereMonth('o.created_at', $request->bulan);
+        // Tambahan filter "tahun / bulan" kalau dipakai
+        if ($request->filled('tahun')) {
+            $base->whereYear('o.created_at', $request->tahun);
+        }
+        if ($request->filled('bulan')) {
+            $base->whereMonth('o.created_at', $request->bulan);
+        }
 
-        if ($request->filled('kategori_id')) $base->where('k.id', $request->kategori_id);
-        if ($request->filled('usaha_id')) $base->where('us.id', $request->usaha_id);
+        // Filter kategori & usaha
+        if ($request->filled('kategori_id')) {
+            $base->where('k.id', $request->kategori_id);
+        }
+        if ($request->filled('usaha_id')) {
+            $base->where('us.id', $request->usaha_id);
+        }
 
         return $base;
     }
 
     // =========================================================================
-    // DASHBOARD UTAMA (index) - cukup pakai baseQueryPengerajin yang sudah fixed
+    // DASHBOARD UTAMA
     // =========================================================================
     public function index(Request $request)
     {
+        // --- konteks pengerajin & usaha yang boleh dilihat ---
         [$loginPengerajinId, $usahaIds] = $this->getPengerajinContext();
         $filterPengerajinId = $this->resolveFilterPengerajinId($request, $loginPengerajinId, $usahaIds);
 
+        // --- list tahun / bulan untuk dropdown ---
         $currentYear = now()->year;
         $tahunList = range($currentYear - 5, $currentYear);
         rsort($tahunList);
 
         $bulanList = [
-            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
-            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember'
         ];
 
+        // --- list usaha & kategori ---
         $usahaList = Usaha::whereIn('id', $usahaIds)->get();
         $kategoriList = KategoriProduk::all();
 
-        // role di schema kamu: admin/guest/pengerajin (bukan customer)
+        // user pembeli (role guest) hanya buat referensi lain kalau perlu
         $userList = User::where('role', 'guest')->get();
 
+        // list pengerajin rekan (untuk dropdown filter pengerajin)
         $selectedUsahaId = $request->filled('usaha_id') ? (int) $request->usaha_id : null;
         $pengerajinList = $this->getPengerajinListForFilter($usahaIds, $selectedUsahaId);
 
-        $base = $this->baseQueryPengerajin($request);
+        // --- RANGE TANGGAL DARI FILTER PERIODE ---
+        $hasSimplePeriode = $request->filled('tahun') || $request->filled('bulan');
+        [$startDate, $endDate] = $this->resolveDateRange($request, $hasSimplePeriode ? null : 30);
+
+        $periodeLabel = null;
+        if ($startDate && $endDate) {
+            if ($startDate->isSameDay($endDate)) {
+                $periodeLabel = $startDate->format('d/m/Y');
+            } else {
+                $periodeLabel = $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y');
+            }
+        }
+
+        // --- BASE QUERY UTAMA ---
+        $base = $this->baseQueryPengerajin($request, $loginPengerajinId, $usahaIds, $filterPengerajinId, $startDate, $endDate);
         $baseQuery = clone $base;
 
+        // --- METRIC ATAS ---
         $totalTransaksi = (clone $baseQuery)->distinct('o.id')->count('o.id');
 
         $totalPendapatan = (clone $baseQuery)
             ->selectRaw('COALESCE(SUM(oi.quantity * oi.price_at_purchase),0) as total')
             ->value('total') ?? 0;
 
+        // --- PENDAPATAN PER USAHA (TOP 3) ---
         $pendapatanPerUsaha = (clone $baseQuery)
-            ->selectRaw('us.nama_usaha, SUM(oi.quantity * oi.price_at_purchase) as total')
+            ->selectRaw('us.id as usaha_id, us.nama_usaha, SUM(oi.quantity * oi.price_at_purchase) as total')
             ->groupBy('us.id', 'us.nama_usaha')
             ->orderByDesc('total')
             ->limit(3)
@@ -226,6 +294,60 @@ class LaporanPengerajinController extends Controller
             'data' => $pendapatanPerUsaha->pluck('total'),
         ];
 
+        // --- PERFORMA PENJUALAN 5 USAHA TERATAS (LINE CHART) ---
+        $performaPenjualanChart = [
+            'labels' => [],
+            'datasets' => [],
+        ];
+
+        $topUsahaPerforma = (clone $baseQuery)
+            ->selectRaw('us.id as usaha_id, us.nama_usaha, SUM(oi.quantity * oi.price_at_purchase) as total')
+            ->groupBy('us.id', 'us.nama_usaha')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get();
+
+        if ($topUsahaPerforma->count() > 0) {
+            $topUsahaIds = $topUsahaPerforma->pluck('usaha_id')->all();
+
+            $performaRaw = (clone $baseQuery)
+                ->whereIn('us.id', $topUsahaIds)
+                ->selectRaw('
+                    us.id as usaha_id,
+                    us.nama_usaha,
+                    DATE(o.created_at) as tgl,
+                    SUM(oi.quantity * oi.price_at_purchase) as total
+                ')
+                ->groupBy('us.id', 'us.nama_usaha', 'tgl')
+                ->orderBy('tgl')
+                ->get();
+
+            $labels = $performaRaw->pluck('tgl')->unique()->sort()->values()->all();
+            $datasets = [];
+
+            foreach ($topUsahaPerforma as $usaha) {
+                $dataPerUsaha = [];
+                foreach ($labels as $tgl) {
+                    $row = $performaRaw->first(
+                        fn($item) =>
+                        $item->usaha_id == $usaha->usaha_id && $item->tgl === $tgl
+                    );
+                    $dataPerUsaha[] = $row ? (float) $row->total : 0;
+                }
+
+                $datasets[] = [
+                    'label' => $usaha->nama_usaha,
+                    'data' => $dataPerUsaha,
+                ];
+            }
+
+            $performaPenjualanChart = [
+                'labels' => $labels,
+                'datasets' => $datasets,
+            ];
+        }
+
+        // --- TOP PRODUK ---
         $topProdukRow = (clone $baseQuery)
             ->selectRaw('p.nama_produk, SUM(oi.quantity) as total_qty')
             ->groupBy('p.id', 'p.nama_produk')
@@ -246,6 +368,7 @@ class LaporanPengerajinController extends Controller
             'data' => $produkTerlaris->pluck('total_qty'),
         ];
 
+        // --- TOP USER (PEMBELI) ---
         $userAktifRow = (clone $baseQuery)
             ->whereNotNull('u.id')
             ->selectRaw('u.username, COUNT(DISTINCT o.id) as total_transaksi')
@@ -268,6 +391,7 @@ class LaporanPengerajinController extends Controller
             'data' => $userAktifList->pluck('total_transaksi'),
         ];
 
+        // --- TOP KATEGORI ---
         $kategoriTerjual = (clone $baseQuery)
             ->selectRaw('k.nama_kategori_produk, SUM(oi.quantity) as total_qty')
             ->groupBy('k.id', 'k.nama_kategori_produk')
@@ -280,7 +404,7 @@ class LaporanPengerajinController extends Controller
             'data' => $kategoriTerjual->pluck('total_qty'),
         ];
 
-        // LIKE & VIEW (schema kamu pakai session_id, bukan user_id)
+        // --- PRODUK FAVORITE (LIKE) ---
         $produkFavoriteQ = DB::table('produk as p')
             ->join('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
             ->join('usaha as us', 'us.id', '=', 'map.usaha_id')
@@ -288,7 +412,17 @@ class LaporanPengerajinController extends Controller
             ->whereIn('map.usaha_id', $usahaIds);
 
         $produkFavoriteQ = $this->applyPengerajinFilter($produkFavoriteQ, $filterPengerajinId, 'p');
-        if ($request->filled('usaha_id')) $produkFavoriteQ->where('us.id', $request->usaha_id);
+
+        if ($request->filled('usaha_id')) {
+            $produkFavoriteQ->where('us.id', $request->usaha_id);
+        }
+
+        if ($startDate) {
+            $produkFavoriteQ->whereDate('pl.created_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $produkFavoriteQ->whereDate('pl.created_at', '<=', $endDate);
+        }
 
         $produkFavorite = $produkFavoriteQ
             ->selectRaw('p.nama_produk, COUNT(DISTINCT pl.id) as total_like')
@@ -302,6 +436,7 @@ class LaporanPengerajinController extends Controller
             'data' => $produkFavorite->pluck('total_like'),
         ];
 
+        // --- PRODUK VIEWS ---
         $produkViewsQ = DB::table('produk as p')
             ->join('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
             ->join('usaha as us', 'us.id', '=', 'map.usaha_id')
@@ -309,7 +444,17 @@ class LaporanPengerajinController extends Controller
             ->whereIn('map.usaha_id', $usahaIds);
 
         $produkViewsQ = $this->applyPengerajinFilter($produkViewsQ, $filterPengerajinId, 'p');
-        if ($request->filled('usaha_id')) $produkViewsQ->where('us.id', $request->usaha_id);
+
+        if ($request->filled('usaha_id')) {
+            $produkViewsQ->where('us.id', $request->usaha_id);
+        }
+
+        if ($startDate) {
+            $produkViewsQ->whereDate('pv.created_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $produkViewsQ->whereDate('pv.created_at', '<=', $endDate);
+        }
 
         $produkViews = $produkViewsQ
             ->selectRaw('p.nama_produk, COUNT(DISTINCT pv.id) as total_view')
@@ -338,10 +483,9 @@ class LaporanPengerajinController extends Controller
             'kategoriChart',
             'topProduk',
             'userAktif',
-            'pengerajinList'
+            'pengerajinList',
+            'periodeLabel',
+            'performaPenjualanChart'
         ));
     }
-
-    // Kalau kamu punya page laporan lain (pendapatan usaha, kategori, transaksi, dll)
-    // pastikan base query-nya juga mengikuti pola o->oi->p->map->us seperti di atas.
 }

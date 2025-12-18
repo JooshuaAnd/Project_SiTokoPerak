@@ -1,24 +1,27 @@
 @extends('pengerajin.layouts.pengerajin')
 @section('title', 'Dashboard Laporan')
 
+@section('content_header')
+    <h1 style="color:white; font-weight:600;">Dashboard Laporan</h1>
+@stop
 @section('content')
-    {{-- 🔍 FILTER GLOBAL (Card yang membungkus semua filter) --}}
+    {{-- 🔍 FILTER GLOBAL --}}
     @include('pengerajin.laporan_usaha.filter', [
         'action' => route('pengerajin.laporan_usaha.index'),
         'resetUrl' => route('pengerajin.laporan_usaha.index'),
-        'showUsaha' => true, // Pastikan ini true jika ingin menampilkan filter usaha
+        'showUsaha' => true,
         'showStatus' => true,
         'showKategori' => true,
         'showDateRange' => true,
         'showPeriode' => true,
         'showPengerajin' => true,
-        // nggak perlu export di dashboard => nggak kita isi 'exportRoute'
     ])
+
 
     {{-- GRID DASHBOARD UTAMA --}}
     <div class="dashboard-grid">
 
-        {{-- METRIC ATAS (4 KOLOM, Span 3) --}}
+        {{-- METRIC ATAS --}}
         <div class="card-modern" style="grid-column: span 3;">
             <div class="metric-label">Total Transaksi</div>
             <div class="metric-value">{{ number_format($totalTransaksi ?? 0, 0, ',', '.') }}</div>
@@ -31,52 +34,59 @@
             </div>
         </div>
 
-        <div class="card-modern" style="grid-column: span 3;">
+        <div class="card-modern" style="grid-column: span 3;"> {{-- METRIC 3: PRODUK TERLARIS --}}
             <div class="metric-label">Produk Terlaris (Penjualan)</div>
             <div class="metric-value" style="font-size: 22px;">
                 {{ $topProduk ?? 'N/A' }}
             </div>
         </div>
 
-        <div class="card-modern" style="grid-column: span 3;">
+        <div class="card-modern" style="grid-column: span 3;"> {{-- METRIC 4: USER AKTIF TERTINGGI --}}
             <div class="metric-label">User Aktif Tertinggi</div>
             <div class="metric-value" style="font-size: 22px;">
                 {{ $userAktif ?? 'N/A' }}
             </div>
         </div>
 
-        {{-- BAR PENDAPATAN PER USAHA (Span 6) --}}
+        {{-- 📈 Performa penjualan 5 usaha teratas --}}
+        <div class="card-modern" style="grid-column: span 12;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <h5 class="mb-0">📈 Performa Penjualan Usaha (Maks. 5 Teratas)</h5>
+                @if ($periodeLabel)
+                    <span style="font-size: 12px; opacity:.8;">Periode: {{ $periodeLabel }}</span>
+                @endif
+            </div>
+            <div class="chart-box"><canvas id="chartPerforma"></canvas></div>
+        </div>
+        {{-- CHART 1: PENDAPATAN PER USAHA (Span 6) --}}
         <div class="card-modern" style="grid-column: span 6;">
-            <h5>💰 Pendapatan Top 3 Usaha (Yang Anda kelola)</h5>
+            <h5>💰 Pendapatan Top 3 Usaha (Yang Anda Kelola)</h5>
             <div class="chart-box"><canvas id="chartPendapatan"></canvas></div>
         </div>
-
-        {{-- TOP KATEGORI (Span 6) --}}
-        <div class="card-modern" style="grid-column: span 6;">
+        {{-- TOP 3 KATEGORI --}}
+        <div class="card-modern" style="grid-column: span 4;">
             <h5>📦 Top 3 Kategori Produk (Total Terjual)</h5>
             <div class="chart-box"><canvas id="chartKategori"></canvas></div>
         </div>
 
-        {{-- TOP 3 PRODUK: TERLARIS (Span 4) --}}
+        {{-- TOP 3 PRODUK: TERLARIS / FAVORITE / DILIHAT --}}
         <div class="card-modern" style="grid-column: span 4;">
             <h5>🔥 Top 3 Produk Terlaris (Penjualan)</h5>
             <div class="chart-box"><canvas id="chartTerlaris"></canvas></div>
         </div>
 
-        {{-- TOP 3 PRODUK: FAVORITE (Span 4) --}}
         <div class="card-modern" style="grid-column: span 4;">
             <h5>❤️ Top 3 Produk Favorite (Like)</h5>
             <div class="chart-box"><canvas id="chartFavorite"></canvas></div>
         </div>
 
-        {{-- TOP 3 PRODUK: DILIHAT (Span 4) --}}
-        <div class="card-modern" style="grid-column: span 4;">
+        <div class="card-modern" style="grid-column: span 6;">
             <h5>👁️ Top 3 Produk Dilihat</h5>
             <div class="chart-box"><canvas id="chartViews"></canvas></div>
         </div>
 
-        {{-- TOP 3 USER (Pembeli) (Span 6) --}}
-        <div class="card-modern" style="grid-column: span 6;">
+        {{-- CHART 6: TOP USER (Pembeli) (Span 6) --}}
+        <div class="card-modern" style="grid-column: span 12;">
             <h5>👥 Top 3 User Aktif (Jumlah Transaksi)</h5>
             <div class="chart-box"><canvas id="chartUser"></canvas></div>
         </div>
@@ -90,6 +100,7 @@
     <script>
         let data = {
             pendapatan: @json($pendapatanChart ?? ['labels' => [], 'data' => []]),
+            performa: @json($performaPenjualanChart ?? ['labels' => [], 'datasets' => []]),
             kategori: @json($kategoriChart ?? ['labels' => [], 'data' => []]),
             terlaris: @json($produkTerlarisChart ?? ['labels' => [], 'data' => []]),
             favorite: @json($produkFavoriteChart ?? ['labels' => [], 'data' => []]),
@@ -99,7 +110,8 @@
 
         const primaryColors = ['#5ab1f7', '#7bd2f6', '#32a852', '#f6931d', '#9b59b6', '#3498db'];
 
-        function chart(id, type, labels, dataset, horizontal = false) {
+        // Helper bar / doughnut
+        function chartBasic(id, type, labels, dataset, horizontal = false) {
             if (!labels || labels.length === 0) {
                 const el = document.getElementById(id);
                 if (el) el.parentNode.innerHTML =
@@ -112,7 +124,7 @@
 
             const isHorizontalBar = horizontal && type === 'bar';
 
-            let chartOptions = {
+            let options = {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
@@ -134,40 +146,35 @@
                         }
                     },
                     y: {
+                        beginAtZero: true,
                         ticks: {
                             color: '#b8ccdf'
                         },
                         grid: {
                             color: 'rgba(255, 255, 255, 0.08)'
-                        },
-                        beginAtZero: true
+                        }
                     }
                 }
             };
 
             if (isHorizontalBar) {
-                chartOptions.indexAxis = 'y';
+                options.indexAxis = 'y';
             }
 
-            // === TOOLTIP & VALUE HANDLER YANG BENAR ===
-            chartOptions.plugins.tooltip = {
+            // Tooltip khusus pendapatan (Rupiah)
+            options.plugins.tooltip = {
                 callbacks: {
                     label: (context) => {
                         let value;
-
                         if (type === 'doughnut') {
-                            // Doughnut → nilai langsung di parsed (number)
                             value = context.parsed;
                         } else if (isHorizontalBar) {
-                            // Bar horizontal → value di sumbu X
                             value = context.parsed.x;
                         } else {
-                            // Bar vertikal → value di sumbu Y
                             value = context.parsed.y;
                         }
 
                         if (id === 'chartPendapatan') {
-                            // Tooltip khusus pendapatan (Rupiah)
                             return 'Rp ' + (value ?? 0).toLocaleString('id-ID');
                         }
 
@@ -179,9 +186,10 @@
                 }
             };
 
-            // Khusus axis pendapatan (bar VERTIKAL)
+            // Axis pendapatan → format Rupiah
             if (id === 'chartPendapatan' && type === 'bar' && !isHorizontalBar) {
-                chartOptions.scales.y.ticks.callback = function(value) {
+                options.scales.y.ticks.callback = function(value) {
+                    if (value >= 1000000000) return 'Rp' + (value / 1000000000).toFixed(1) + ' M';
                     if (value >= 1000000) return 'Rp' + (value / 1000000).toFixed(1) + ' Jt';
                     if (value >= 1000) return 'Rp' + (value / 1000).toFixed(0) + ' Rb';
                     return 'Rp' + value;
@@ -201,22 +209,104 @@
                     labels: labels,
                     datasets: datasets
                 },
-                options: chartOptions
+                options: options
+            });
+        }
+
+        // Helper line chart performa penjualan
+        function chartPerformaLine(id, labels, datasetsConfig) {
+            if (!labels || labels.length === 0 || !datasetsConfig || datasetsConfig.length === 0) {
+                const el = document.getElementById(id);
+                if (el) el.parentNode.innerHTML =
+                    '<p style="text-align:center; opacity:0.6; padding-top: 50px;">Tidak ada data untuk filter ini.</p>';
+                return;
+            }
+
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            const datasets = datasetsConfig.map((ds, idx) => ({
+                label: ds.label,
+                data: ds.data,
+                borderColor: primaryColors[idx % primaryColors.length],
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 3,
+                pointHoverRadius: 4,
+                fill: false,
+            }));
+
+            new Chart(el, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#b8ccdf'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label ? context.dataset.label + ': ' : '';
+                                    const value = context.parsed.y ?? 0;
+                                    return label + 'Rp ' + value.toLocaleString('id-ID');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#b8ccdf'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.06)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#b8ccdf',
+                                callback: function(value) {
+                                    if (value >= 1000000000) return 'Rp' + (value / 1000000000).toFixed(1) +
+                                        ' M';
+                                    if (value >= 1000000) return 'Rp' + (value / 1000000).toFixed(1) + ' Jt';
+                                    if (value >= 1000) return 'Rp' + (value / 1000).toFixed(0) + ' Rb';
+                                    return 'Rp' + value;
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.06)'
+                            }
+                        }
+                    }
+                }
             });
         }
 
         // --- Inisialisasi grafik ---
 
-        // Pendapatan Per Usaha (bar vertikal)
-        chart('chartPendapatan', 'bar', data.pendapatan.labels, data.pendapatan.data, false);
+        // Pendapatan per usaha
+        chartBasic('chartPendapatan', 'bar', data.pendapatan.labels, data.pendapatan.data, false);
 
-        // Top Kategori (Donut Chart)
-        chart('chartKategori', 'doughnut', data.kategori.labels, data.kategori.data, false);
+        // Performa penjualan (line)
+        chartPerformaLine('chartPerforma', data.performa.labels, data.performa.datasets);
 
-        // Chart lainnya (Horizontal bar)
-        chart('chartTerlaris', 'bar', data.terlaris.labels, data.terlaris.data, true);
-        chart('chartFavorite', 'bar', data.favorite.labels, data.favorite.data, true);
-        chart('chartViews', 'bar', data.views.labels, data.views.data, true);
-        chart('chartUser', 'bar', data.user.labels, data.user.data, true);
+        // Kategori (donut)
+        chartBasic('chartKategori', 'doughnut', data.kategori.labels, data.kategori.data, true);
+
+        // Lain-lain (bar horizontal)
+        chartBasic('chartTerlaris', 'bar', data.terlaris.labels, data.terlaris.data, true);
+        chartBasic('chartFavorite', 'bar', data.favorite.labels, data.favorite.data, true);
+        chartBasic('chartViews', 'bar', data.views.labels, data.views.data, true);
+        chartBasic('chartUser', 'bar', data.user.labels, data.user.data, true);
     </script>
 @stop
