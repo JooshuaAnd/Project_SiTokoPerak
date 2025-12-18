@@ -15,7 +15,7 @@
         'showUsaha' => true,
         'showKategori' => true,
         'showStatus' => true,
-        'showDateRange' => true,
+        'showDateRange' => false,
         'showPeriode' => true,
         'exportRoute' => 'pengerajin.laporan_usaha.laporan-views.export',
     ])

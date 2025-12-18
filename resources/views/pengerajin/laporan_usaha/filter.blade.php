@@ -7,19 +7,18 @@
 
     $showTahun = $showTahun ?? false;
     $showBulan = $showBulan ?? false;
-    $showUsaha = $showUsaha ?? false;
-    $showKategori = $showKategori ?? false;
-    $showStatus = $showStatus ?? false; // buat halaman transaksi
-    $showDateRange = $showDateRange ?? true; // tanggal mulai / akhir
-    $showPeriode = $showPeriode ?? true; // include filter_periode atau tidak
-    $showPengerajin = $showPengerajin ?? true; // Default false, hanya tampilkan jika di-override true
+    $showUsaha = $showUsaha ?? true;
+    $showKategori = $showKategori ?? true;
+    $showStatus = $showStatus ?? true;
+    $showDateRange = $showDateRange ?? false;
+    $showPeriode = $showPeriode ?? true;
+    $showPengerajin = $showPengerajin ?? true;
 @endphp
-
 <div class="card card-modern mb-3">
     <div class="card-body">
         <form method="GET" action="{{ $action }}">
             <div class="row">
-                {{-- 🔹 Filter Tahun --}}
+                {{-- 🔹 Filter Tahun
                 @if ($showTahun && isset($tahunList))
                     <div class="form-group col-md-2 col-sm-6">
                         <label style="color:#b8ccdf;">Tahun</label>
@@ -33,9 +32,9 @@
                             @endforeach
                         </select>
                     </div>
-                @endif
+                @endif --}}
 
-                {{-- 🔹 Filter Bulan --}}
+                {{-- 🔹 Filter Bulan
                 @if ($showBulan && isset($bulanList))
                     <div class="form-group col-md-2 col-sm-6">
                         <label style="color:#b8ccdf;">Bulan</label>
@@ -49,7 +48,7 @@
                             @endforeach
                         </select>
                     </div>
-                @endif
+                @endif --}}
 
                 {{-- 🔹 Filter Usaha --}}
                 @if ($showUsaha && isset($usahaList))
@@ -114,9 +113,9 @@
                         </select>
                     </div>
                 @endif
-                {{-- 🔹 Range tanggal biasa --}}
+                {{-- 🔹 Range tanggal biasa
                 @if ($showDateRange)
-                    <div class="form-group col-md-2 col-sm-6">
+                    <div class="form-group col-md-3 col-sm-6">
                         <label style="color:#b8ccdf;">Tanggal Mulai</label>
                         <input type="date" name="start_date" class="form-control"
                             value="{{ request('start_date') }}">
@@ -127,7 +126,7 @@
                         <input type="date" name="end_date" class="form-control" value="{{ request('end_date') }}">
                     </div>
                 @endif
-            </div>
+            </div> --}}
 
             {{-- 🔹 Filter Periode (day / week / month / year) --}}
             @if ($showPeriode)
@@ -139,7 +138,7 @@
                 <div class="form-group col-md-4 col-sm-12" style="margin-top: 4px;">
                     <div class="row">
                         <div class="col-6">
-                            <button type="submit" class="btn btn-primary btn-block mb-2">
+                            <button type="submit" class="btn btn-primary btn-block mb-2" name="apply_filters" value="1">
                                 <i class="fa fa-filter"></i> Terapkan
                             </button>
                         </div>
