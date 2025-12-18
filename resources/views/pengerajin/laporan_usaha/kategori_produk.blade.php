@@ -8,7 +8,6 @@
 
 @section('content')
 
-    {{-- 🔍 FILTER --}}
     @include('pengerajin.laporan_usaha.filter', [
         'action' => route('pengerajin.laporan_usaha.kategori-produk'),
         'resetUrl' => route('pengerajin.laporan_usaha.kategori-produk'),
@@ -19,8 +18,6 @@
         'showPeriode' => true,
         'exportRoute' => 'pengerajin.laporan_usaha.kategori-produk.export',
     ])
-
-
     {{-- RINGKASAN --}}
     <div class="row mb-3">
         <div class="col-md-4">

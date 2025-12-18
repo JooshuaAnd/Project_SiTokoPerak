@@ -47,6 +47,23 @@ class LaporanPengerajinController extends Controller
 
         return [$pengerajinId, $usahaIds];
     }
+    protected function getPengerajinListForFilter(array $usahaIds, ?int $selectedUsahaId = null)
+    {
+        return DB::table('pengerajin as p')
+            ->join('usaha_pengerajin as up', 'up.pengerajin_id', '=', 'p.id')
+            ->when($selectedUsahaId, function ($q) use ($selectedUsahaId) {
+                // Kalau user pilih 1 usaha di filter, batasi ke usaha itu saja
+                $q->where('up.usaha_id', $selectedUsahaId);
+            }, function ($q) use ($usahaIds) {
+                // Kalau belum pilih usaha, ambil semua usaha yang dimiliki user login
+                $q->whereIn('up.usaha_id', $usahaIds);
+            })
+            ->select('p.id', 'p.nama_pengerajin')
+            ->distinct()
+            ->orderBy('p.nama_pengerajin')
+            ->get();
+    }
+
 
     // =========================================================================
     // HELPER TANGGAL (resolveDateRange)

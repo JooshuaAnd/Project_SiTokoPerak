@@ -12,6 +12,7 @@
         'showKategori' => true,
         'showDateRange' => true,
         'showPeriode' => true,
+        'showPengerajin' => true,
         // nggak perlu export di dashboard => nggak kita isi 'exportRoute'
     ])
 

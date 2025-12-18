@@ -55,7 +55,7 @@
                         Rp {{ number_format($totalPendapatan ?? 0, 0, ',', '.') }}
                     </div>
                     <span class="badge badge-soft mt-2">
-                        Jumlah penjualan (subtotal detail)
+                        Jumlah penjualan
                     </span>
                 </div>
             </div>

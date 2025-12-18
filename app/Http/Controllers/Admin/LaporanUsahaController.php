@@ -23,6 +23,7 @@ class LaporanUsahaController extends Controller
      * - start_date & end_date (filter lama)
      * - defaultLastDays (misal 30 hari terakhir untuk slow moving)
      */
+    
     protected function resolveDateRange(Request $request, ?int $defaultLastDays = null): array
     {
         $periodeType = $request->input('periode_type'); // day, week, month, year atau null

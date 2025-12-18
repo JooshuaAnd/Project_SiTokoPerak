@@ -4,61 +4,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title ?? 'Dashboard Pengerajin' }}</title>
+    <title>@yield('title', 'Dashboard Pengerajin')</title>
 
     {{-- Bootstrap --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     {{-- Font Awesome --}}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    {{-- DataTables Bootstrap 5 --}}
+    {{-- DataTables Bootstrap 5 (CSS saja, JS per-halaman kalau perlu) --}}
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 
     <style>
         :root {
-            --primary: #e5e6ee;
-            --primary-light: #0313bc;
-            --primary-dark: #c5c4cf;
-            --bg: #1f6bb7;
-            --card: #5495ff;
-            --text: #1e293b;
-            --muted: #f6f7f9;
-            --border: #e2e8f0;
-            --sidebar-bg: linear-gradient(135deg, #141a87 0%, #4f46e5 100%);
-            --sidebar-text: #151515;
-            --active: #f0f2f7;
+            --primary: #6366f1;
+            --primary-soft: rgba(99, 102, 241, 0.12);
+            --primary-soft-border: rgba(99, 102, 241, 0.35);
 
-            --status-baru: #6366f1;
-            --status-dibayar: #3b82f6;
-            --status-diproses: #f59e0b;
-            --status-dikirim: #06b6d4;
-            --status-selesai: #10b981;
-            --status-dibatalkan: #ef4444;
+            --bg: #020617;
+            /* body background */
+            --content-bg: #020617;
+            /* konten */
+            --card: #0f172a;
+            /* card background */
+            --text: #e5e7eb;
+            /* teks utama */
+            --muted: #9ca3af;
+            /* teks sekunder */
+            --border: rgba(148, 163, 184, 0.25);
+
+            --sidebar-bg-from: #020617;
+            --sidebar-bg-to: #111827;
+            --sidebar-text: #e5e7eb;
+            --sidebar-muted: rgba(148, 163, 184, 0.9);
+            --sidebar-active-bg: rgba(15, 23, 42, 0.85);
+            --sidebar-active-text: #f9fafb;
         }
 
         * {
-            transition: all 0.3s ease;
+            box-sizing: border-box;
         }
 
         body {
-            background: linear-gradient(135deg, #111111 0%, #f1f5f9 100%);
+            background: var(--bg);
             padding-left: 260px;
             min-height: 100vh;
             color: var(--text);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
-        /* Sidebar */
+        /* ================= SIDEBAR ================= */
         .sidebar {
             width: 260px;
             height: 100vh;
             position: fixed;
-            left: 0;
-            top: 0;
-            background: var(--sidebar-bg);
+            inset-block: 0;
+            inset-inline-start: 0;
+            background: linear-gradient(160deg, var(--sidebar-bg-from), var(--sidebar-bg-to));
             color: var(--sidebar-text);
-            padding: 24px 18px;
+            padding: 20px 16px;
             z-index: 1000;
-            box-shadow: 4px 0 15px rgba(233, 233, 236, 0.15);
+            box-shadow: 4px 0 20px rgba(15, 23, 42, 0.7);
             overflow-y: auto;
         }
 
@@ -67,26 +71,24 @@
         }
 
         .sidebar::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
+            background: transparent;
         }
 
         .sidebar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
+            background: rgba(148, 163, 184, 0.5);
+            border-radius: 999px;
         }
 
         .sidebar h4 {
-            color: #fff;
-            font-weight: 700;
-            font-size: 16px;
+            font-size: 15px;
+            font-weight: 600;
             margin-bottom: 16px;
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 12px;
-            background: rgba(148, 140, 140, 0.1);
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.8);
         }
 
         .sidebar h4 i {
@@ -94,296 +96,289 @@
         }
 
         .sidebar h6 {
-            color: rgba(255, 255, 255, 0.7) !important;
             font-size: 11px;
-            letter-spacing: .06em;
+            letter-spacing: .12em;
             text-transform: uppercase;
-            margin-top: 20px;
-            margin-bottom: 12px;
+            color: var(--sidebar-muted);
+            margin: 16px 6px 8px;
             font-weight: 600;
         }
 
-        .sidebar a {
-            color: rgba(255, 255, 255, 0.85);
+        .sidebar nav a {
+            color: var(--sidebar-text);
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            margin-bottom: 6px;
+            gap: 10px;
+            padding: 10px 12px;
+            margin-bottom: 4px;
             border-radius: 10px;
             text-decoration: none;
             font-size: 14px;
             position: relative;
             overflow: hidden;
+            transition: background .18s, color .18s, padding-left .18s;
         }
 
-        .sidebar a::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 3px;
-            height: 100%;
-            background: var(--active);
-            transform: scaleY(0);
-            transform-origin: top;
-        }
-
-        .sidebar a i {
+        .sidebar nav a i {
             width: 18px;
             text-align: center;
             font-size: 14px;
         }
 
-        .sidebar a:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #fff;
-            padding-left: 18px;
+        .sidebar nav a::before {
+            content: '';
+            position: absolute;
+            inset-inline-start: 0;
+            inset-block: 0;
+            width: 3px;
+            background: var(--primary);
+            transform: scaleY(0);
+            transform-origin: top;
+            transition: transform .18s;
         }
 
-        .sidebar a:hover::before {
+        .sidebar nav a:hover {
+            background: rgba(15, 23, 42, 0.9);
+            padding-left: 16px;
+        }
+
+        .sidebar nav a:hover::before {
             transform: scaleY(1);
         }
 
-        .sidebar a.active {
-            background: var(--active);
-            color: var(--text);
+        .sidebar nav a.active {
+            background: var(--sidebar-active-bg);
+            color: var(--sidebar-active-text);
             font-weight: 600;
         }
 
-        /* Content */
+        .sidebar nav a.active::before {
+            transform: scaleY(1);
+        }
+
+        .sidebar form button {
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        /* ================= CONTENT ================= */
         .content {
-            padding: 28px;
+            padding: 24px;
+            background: var(--content-bg);
+            min-height: 100vh;
+        }
+
+        .content-inner {
+            max-width: 1280px;
+            margin: 0 auto;
         }
 
         .content-header {
-            padding-bottom: 18px;
-            border-bottom: 2px solid var(--border);
-            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .content-header-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
         .content-header h1 {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
             margin: 0;
-            color: var(--text);
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #e5e7eb;
         }
 
-        /* Card / Box */
+        .content-header small {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .btn-sidebar-toggle {
+            display: none;
+        }
+
+        /* ================= GENERIC CARD/BOX ================= */
         .box,
         .card-modern {
-            background: #102544; /* Darker card background */
-            border-radius: 15px;
+            background: var(--card);
+            border-radius: 14px;
             border: 1px solid var(--border);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-            padding: 20px;
+            box-shadow: 0 4px 18px rgba(15, 23, 42, 0.6);
+            padding: 18px;
             margin-bottom: 18px;
-        }
-
-        .box:hover, /* Keep hover effect for consistency */
-        .card-modern:hover { /* Keep hover effect for consistency */
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-            border-color: rgba(255, 255, 255, 0.15);
+            color: var(--text);
         }
 
         .card-modern .card-header {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Lighter border for dark theme */
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, transparent 100%);
-            color: #e8eef7; /* Ensure card header title is readable */
-            padding-bottom: 12px;
-            margin-bottom: 12px;
+            padding: 10px 0 12px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            background: transparent;
+            color: var(--text);
         }
 
-        /* Grid dashboard */
+        .card-modern .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .chart-box {
+            height: 280px;
+        }
+
+        /* ================= METRIC / RINGKASAN ================= */
+        .metric-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 4px;
+            color: #e5e7eb;
+        }
+
+        .badge-soft {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            border: 1px solid var(--primary-soft-border);
+            background: var(--primary-soft);
+            color: #c7d2fe;
+        }
+
+        /* ================= TABEL LAPORAN ================= */
+        .table-dark-custom {
+            background-color: var(--card);
+            color: var(--text);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table-dark-custom thead tr {
+            background-color: #020617;
+        }
+
+        .table-dark-custom thead th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 12px !important;
+        }
+
+        .table-dark-custom tbody td {
+            padding: 10px 12px !important;
+            border-top: 1px solid rgba(148, 163, 184, 0.15);
+            vertical-align: middle;
+            font-size: 13px;
+        }
+
+        .table-dark-custom tbody tr:hover {
+            background: rgba(15, 23, 42, 0.7);
+        }
+
+        /* ================= STATUS BADGE ================= */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+
+        .status-badge.status-baru {
+            background: rgba(99, 102, 241, 0.12);
+            color: #a5b4fc;
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        .status-badge.status-dibayar {
+            background: rgba(59, 130, 246, 0.12);
+            color: #bfdbfe;
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .status-badge.status-diproses {
+            background: rgba(245, 158, 11, 0.12);
+            color: #fed7aa;
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .status-badge.status-dikirim {
+            background: rgba(6, 182, 212, 0.12);
+            color: #a5f3fc;
+            border-color: rgba(6, 182, 212, 0.4);
+        }
+
+        .status-badge.status-selesai {
+            background: rgba(16, 185, 129, 0.12);
+            color: #bbf7d0;
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        .status-badge.status-dibatalkan {
+            background: rgba(239, 68, 68, 0.12);
+            color: #fecaca;
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        /* ================= GRID DASHBOARD ================= */
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(12, minmax(0, 1fr));
             gap: 18px;
         }
 
-        .chart-box {
-            height: 300px;
-        }
-
-        /* Metric / ringkasan */
-        .metric-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .06em;
-            color: #b8ccdf; /* Lighter text for labels */
-            font-weight: 600;
-        }
-
-        .metric-value {
-            font-size: 28px;
-            font-weight: 700;
-            margin-top: 4px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .badge-soft {
-            display: inline-flex;
-            align-items: center;
-            padding: .25rem .75rem;
-            font-size: 12px;
-            border-radius: 20px;
-            border: 1.5px solid rgba(99, 102, 241, 0.3);
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(129, 140, 248, 0.08) 100%);
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        /* Tabel laporan */
-        .table-dark-custom {
-            background-color: var(--card);
-            color: #e8eef7; /* Light text for table content */
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }
-
-        .table-dark-custom thead tr {
-            background-color: #081327; /* Very dark background for table header */
-        }
-
-        .table-dark-custom thead th {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Lighter border */
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .06em;
-            color: #b8ccdf; /* Light text for table headers */
-            font-weight: 700;
-            padding: 14px !important;
-        }
-
-        .table-dark-custom tbody tr {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05); /* Very subtle border */
-        }
-
-        .table-dark-custom tbody tr:hover {
-            background: linear-gradient(90deg, rgba(99, 102, 241, 0.03) 0%, transparent 100%);
-        }
-
-        .table-dark-custom tbody td {
-            padding: 14px !important;
-            vertical-align: middle;
-        }
-
-        /* Badge status transaksi */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: .3rem .75rem;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1.5px solid;
-        }
-
-        .status-badge.status-baru {
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--status-baru);
-            border-color: rgba(99, 102, 241, 0.3);
-        }
-
-        .status-badge.status-dibayar {
-            background: rgba(59, 130, 246, 0.1);
-            color: var(--status-dibayar);
-            border-color: rgba(59, 130, 246, 0.3);
-        }
-
-        .status-badge.status-diproses {
-            background: rgba(245, 158, 11, 0.1);
-            color: var(--status-diproses);
-            border-color: rgba(245, 158, 11, 0.3);
-        }
-
-        .status-badge.status-dikirim {
-            background: rgba(6, 182, 212, 0.1);
-            color: var(--status-dikirim);
-            border-color: rgba(6, 182, 212, 0.3);
-        }
-
-        .status-badge.status-selesai {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--status-selesai);
-            border-color: rgba(16, 185, 129, 0.3);
-        }
-
-        .status-badge.status-dibatalkan {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--status-dibatalkan);
-            border-color: rgba(239, 68, 68, 0.3);
-        }
-
-        /* Toggle Tabel / Grafik */
-        .toggle-pill {
-            display: inline-flex;
-            background: #0b1d39; /* Dark background for the toggle pill */
-            border-radius: 25px;
-            padding: 4px;
-            gap: 4px;
-        }
-
-        .toggle-pill button {
-            border: none;
-            background: transparent;
-            color: #032648; /* Muted text for inactive buttons */
-            font-size: 13px;
-            padding: 8px 18px;
-            border-radius: 20px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .toggle-pill button.active {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            color: #ffffff; /* White text for active button */
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        }
-
-        /* Form */
+        /* ================= FORM ================= */
         .form-control,
         .form-select {
             border-radius: 10px !important;
-            font-size: 14px; /* Keep font size */
-            border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Lighter border */
-            padding: 10px 14px;
-            background-color: #0f233f; /* Slightly lighter than body for contrast */
-            color: #e8eef7; /* Light text for input */
+            font-size: 14px;
+            border: 1px solid var(--border) !important;
+            padding: 8px 12px;
+            background-color: #020617;
+            color: var(--text);
         }
 
         .form-control:focus,
         .form-select:focus {
-            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.15);
-            border-color: var(--primary) !important; /* Primary color on focus */
-        }
-        label {
-            font-size: 13px;
-            color: #b8ccdf; /* Light text for labels */
-            margin-bottom: 6px;
-            font-weight: 600;
+            box-shadow: 0 0 0 0.15rem rgba(99, 102, 241, 0.4);
+            border-color: var(--primary) !important;
         }
 
-        /* Responsive */
+        label {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        /* ================= RESPONSIVE ================= */
         @media (max-width: 992px) {
             body {
                 padding-left: 0;
             }
 
             .sidebar {
-                position: fixed;
-                width: 260px;
                 left: -260px;
             }
 
@@ -395,14 +390,29 @@
                 padding: 16px;
             }
 
-            .dashboard-grid {
-                grid-template-columns: repeat(1, minmax(0, 1fr));
+            .content-header {
+                flex-direction: row;
+                align-items: center;
             }
 
-            .content-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 12px;
+            .content-header h1 {
+                font-size: 20px;
+            }
+
+            .btn-sidebar-toggle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 36px;
+                height: 36px;
+                border-radius: 999px;
+                border: 1px solid var(--border);
+                background: #020617;
+                color: var(--text);
+            }
+
+            .dashboard-grid {
+                grid-template-columns: repeat(1, minmax(0, 1fr));
             }
         }
     </style>
@@ -430,7 +440,7 @@
                 <i class="fas fa-globe"></i> Produk Semua
             </a>
 
-            <h6 class="mt-3">LAPORAN USAHA</h6>
+            <h6>Laporan Usaha</h6>
 
             <a href="{{ route('pengerajin.laporan_usaha.index') }}"
                 class="{{ Route::is('pengerajin.laporan_usaha.index') ? 'active' : '' }}">
@@ -473,20 +483,49 @@
             </button>
         </form>
     </div>
-    <div class="content">
-        <div class="content-header">
-            <h1>{{ $title ?? 'Dashboard Pengerajin' }}</h1>
-        </div>
 
-        @yield('content')
+    <div class="content">
+        <div class="content-inner">
+            <div class="content-header">
+                <div class="content-header-title">
+                    @hasSection('content_header')
+                        @yield('content_header')
+                    @else
+                        <h1>@yield('title', 'Dashboard Pengerajin')</h1>
+                        {{-- optional sub-title: bisa diisi dengan section lain kalau mau --}}
+                    @endif
+                </div>
+
+                {{-- tombol sidebar hanya muncul di mobile --}}
+                <button class="btn-sidebar-toggle d-lg-none" id="sidebarToggle" type="button">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+
+            @yield('content')
+        </div>
     </div>
 
-{{-- Bootstrap JS --}}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-{{-- jQuery (for DataTables) --}}
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    {{-- Bootstrap JS --}}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    {{-- jQuery (untuk DataTables & toggle kecil-kecilan) --}}
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-@yield('js')
+    <script>
+        // Toggle sidebar di mobile
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.querySelector('.sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+
+            if (sidebar && toggle) {
+                toggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('active');
+                });
+            }
+        });
+    </script>
+
+    @yield('js')
 </body>
 
 </html>

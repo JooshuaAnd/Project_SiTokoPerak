@@ -12,7 +12,7 @@
     $showStatus = $showStatus ?? false; // buat halaman transaksi
     $showDateRange = $showDateRange ?? true; // tanggal mulai / akhir
     $showPeriode = $showPeriode ?? true; // include filter_periode atau tidak
-    $showPengerajin = $showPengerajin ?? false; // Default false, hanya tampilkan jika di-override true
+    $showPengerajin = $showPengerajin ?? true; // Default false, hanya tampilkan jika di-override true
 @endphp
 
 <div class="card card-modern mb-3">
@@ -99,15 +99,15 @@
                     </div>
                 @endif
 
-                {{-- 🔹 Filter Pengerajin --}}
-                @if ($showPengerajin && isset($pengerajinList) && count($pengerajinList) > 1)
-                    <div class="form-group col-md-2 col-sm-6">
+                {{-- 🔹 Filter Pengerajin (rekan satu toko) --}}
+                @if ($showPengerajin && isset($pengerajinList) && $pengerajinList->count())
+                    <div class="form-group col-md-3 col-sm-6">
                         <label style="color:#b8ccdf;">Pengerajin</label>
-                        <select name="user_id" class="form-control">
-                            <option value="">Semua</option>
+                        <select name="pengerajin_id" class="form-control">
+                            <option value="">Semua Pengerajin</option>
                             @foreach ($pengerajinList as $u)
                                 <option value="{{ $u->id }}"
-                                    {{ (string) request('user_id') === (string) $u->id ? 'selected' : '' }}>
+                                    {{ (string) request('pengerajin_id') === (string) $u->id ? 'selected' : '' }}>
                                     {{ $u->nama_pengerajin }}
                                 </option>
                             @endforeach

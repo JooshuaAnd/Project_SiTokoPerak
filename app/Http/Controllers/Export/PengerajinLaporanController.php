@@ -46,6 +46,69 @@ class PengerajinLaporanController extends Controller
 
         return [$pengerajinId, $usahaIds];
     }
+    protected function getPengerajinListForFilter(array $usahaIds, ?int $selectedUsahaId = null)
+    {
+        return DB::table('pengerajin as p')
+            ->join('usaha_pengerajin as up', 'up.pengerajin_id', '=', 'p.id')
+            ->when($selectedUsahaId, function ($q) use ($selectedUsahaId) {
+                // Kalau user pilih 1 usaha di filter, batasi ke usaha itu saja
+                $q->where('up.usaha_id', $selectedUsahaId);
+            }, function ($q) use ($usahaIds) {
+                // Kalau belum pilih usaha, ambil semua usaha yang dimiliki user login
+                $q->whereIn('up.usaha_id', $usahaIds);
+            })
+            ->select('p.id', 'p.nama_pengerajin')
+            ->distinct()
+            ->orderBy('p.nama_pengerajin')
+            ->get();
+    }
+
+    public function pendapatanUsaha(Request $request)
+    {
+        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
+
+        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
+        $kategoriList = KategoriProduk::all();
+
+        // usaha yang sedang difilter (kalau ada)
+        $selectedUsahaId = $request->filled('usaha_id') ? (int) $request->usaha_id : null;
+
+        // ⬇️ ini sekarang berisi semua pengerajin yang ada di usaha2 tsb
+        $pengerajinList = $this->getPengerajinListForFilter($usahaIds, $selectedUsahaId);
+
+        $laporan = $this->basePendapatanUsahaQueryPengerajin($request)
+            ->groupBy('u.id', 'u.nama_usaha')
+            ->selectRaw('
+            u.nama_usaha,
+            COUNT(DISTINCT o.id) as total_transaksi,
+            SUM(oi.quantity * oi.price_at_purchase) as total_penjualan,
+            SUM(oi.quantity * oi.price_at_purchase) / NULLIF(COUNT(DISTINCT o.id), 0) as rata_rata_transaksi,
+            MAX(o.created_at) as transaksi_terakhir
+        ')
+            ->orderByDesc('total_penjualan')
+            ->get();
+
+        $totalUsaha = $laporan->count();
+        $totalTransaksi = (int) $laporan->sum('total_transaksi');
+        $totalPendapatan = (int) $laporan->sum('total_penjualan');
+        $avgTransaksiGlobal = $totalTransaksi > 0
+            ? (int) floor($totalPendapatan / $totalTransaksi)
+            : 0;
+
+        // ... perhitungan totalUsaha, totalTransaksi, dll tetap sama ...
+
+        return view('pengerajin.laporan_usaha.pendapatan_usaha', compact(
+            'usahaList',
+            'kategoriList',
+            'laporan',
+            'totalUsaha',
+            'totalTransaksi',
+            'totalPendapatan',
+            'avgTransaksiGlobal',
+            'pengerajinList',   // ⬅ penting!
+        ));
+    }
+
 
     protected function resolveDateRange(Request $request, ?int $defaultLastDays = null): array
     {
@@ -109,7 +172,7 @@ class PengerajinLaporanController extends Controller
         return [$startCarbon, $endCarbon];
     }
 
-       // =========================================================================
+    // =========================================================================
     // KATEGORI PRODUK
     // =========================================================================
     protected function baseKategoriProdukQueryPengerajin(Request $request): Builder
@@ -222,6 +285,7 @@ class PengerajinLaporanController extends Controller
         if ($start) {
             $query->whereDate('o.created_at', '>=', $start);
         }
+
         if ($end) {
             $query->whereDate('o.created_at', '<=', $end);
         }
@@ -229,44 +293,44 @@ class PengerajinLaporanController extends Controller
         return $query;
     }
 
-    public function pendapatanUsaha(Request $request)
-    {
-        [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
+    // public function pendapatanUsaha(Request $request)
+    // {
+    //     [$pengerajinId, $usahaIds] = $this->getPengerajinContext();
 
-        $usahaList = Usaha::whereIn('id', $usahaIds)->get();
-        $kategoriList = KategoriProduk::all();
-        $pengerajinList = collect([Auth::user()]);
+    //     $usahaList = Usaha::whereIn('id', $usahaIds)->get();
+    //     $kategoriList = KategoriProduk::all();
+    //     $pengerajinList = collect([Auth::user()]);
 
-        $laporan = $this->basePendapatanUsahaQueryPengerajin($request)
-            ->groupBy('u.id', 'u.nama_usaha')
-            ->selectRaw('
-                u.nama_usaha,
-                COUNT(DISTINCT o.id) as total_transaksi,
-                SUM(oi.quantity * oi.price_at_purchase) as total_penjualan,
-                SUM(oi.quantity * oi.price_at_purchase) / NULLIF(COUNT(DISTINCT o.id), 0) as rata_rata_transaksi,
-                MAX(o.created_at) as transaksi_terakhir
-            ')
-            ->orderByDesc('total_penjualan')
-            ->get();
+    //     $laporan = $this->basePendapatanUsahaQueryPengerajin($request)
+    //         ->groupBy('u.id', 'u.nama_usaha')
+    //         ->selectRaw('
+    //             u.nama_usaha,
+    //             COUNT(DISTINCT o.id) as total_transaksi,
+    //             SUM(oi.quantity * oi.price_at_purchase) as total_penjualan,
+    //             SUM(oi.quantity * oi.price_at_purchase) / NULLIF(COUNT(DISTINCT o.id), 0) as rata_rata_transaksi,
+    //             MAX(o.created_at) as transaksi_terakhir
+    //         ')
+    //         ->orderByDesc('total_penjualan')
+    //         ->get();
 
-        $totalUsaha = $laporan->count();
-        $totalTransaksi = (int) $laporan->sum('total_transaksi');
-        $totalPendapatan = (int) $laporan->sum('total_penjualan');
-        $avgTransaksiGlobal = $totalTransaksi > 0
-            ? (int) floor($totalPendapatan / $totalTransaksi)
-            : 0;
+    //     $totalUsaha = $laporan->count();
+    //     $totalTransaksi = (int) $laporan->sum('total_transaksi');
+    //     $totalPendapatan = (int) $laporan->sum('total_penjualan');
+    //     $avgTransaksiGlobal = $totalTransaksi > 0
+    //         ? (int) floor($totalPendapatan / $totalTransaksi)
+    //         : 0;
 
-        return view('pengerajin.laporan_usaha.pendapatan_usaha', compact(
-            'usahaList',
-            'kategoriList',
-            'laporan',
-            'totalUsaha',
-            'totalTransaksi',
-            'totalPendapatan',
-            'avgTransaksiGlobal',
-            'pengerajinList'
-        ));
-    }
+    //     return view('pengerajin.laporan_usaha.pendapatan_usaha', compact(
+    //         'usahaList',
+    //         'kategoriList',
+    //         'laporan',
+    //         'totalUsaha',
+    //         'totalTransaksi',
+    //         'totalPendapatan',
+    //         'avgTransaksiGlobal',
+    //         'pengerajinList'
+    //     ));
+    // }
 
     public function exportPendapatanUsaha(Request $request)
     {
