@@ -7,27 +7,45 @@ use App\Models\KategoriProduk;
 use App\Models\Produk;
 use App\Models\Usaha;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class PageController extends Controller
 {
-    public function index()
+    /**
+     * Tambahkan likes_count, views_count, dan is_liked ke query produk.
+     * - Jika user login: is_liked berdasarkan user_id
+     * - Jika belum login: is_liked berdasarkan guest_id (pakai session()->getId())
+     */
+    private function withLikeViewAndIsLiked($query)
     {
-        $sessionId = session()->getId();
+        $userId  = Auth::id();
+        $guestId = session()->getId();
 
-        // Kategori untuk carousel
-        $kategoris = KategoriProduk::all();
-
-        // Produk terbaru (8 item) + info like/view + apakah sudah dilike oleh session ini
-        $randomProduks = Produk::with('fotoProduk')
+        return $query
             ->withCount([
                 'likes as likes_count',
                 'views as views_count',
             ])
-            ->withExists([
-                'likes as is_liked' => function ($q) use ($sessionId) {
-                    $q->where('session_id', $sessionId);
-                },
-            ])
+            ->when($userId, function ($q) use ($userId) {
+                $q->withExists([
+                    'likes as is_liked' => fn ($likeQ) => $likeQ->where('user_id', $userId),
+                ]);
+            }, function ($q) use ($guestId) {
+                $q->withExists([
+                    'likes as is_liked' => fn ($likeQ) => $likeQ->where('guest_id', $guestId),
+                ]);
+            });
+    }
+
+    public function index()
+    {
+        // Kategori untuk carousel
+        $kategoris = KategoriProduk::all();
+
+        // Produk terbaru (8 item)
+        $randomProduks = $this->withLikeViewAndIsLiked(
+            Produk::query()->with('fotoProduk')
+        )
             ->latest()
             ->take(8)
             ->get();
@@ -40,22 +58,13 @@ class PageController extends Controller
 
     public function productsByCategory($slug)
     {
-        $sessionId = session()->getId();
-
         $kategori = KategoriProduk::where('slug', $slug)->firstOrFail();
 
-        $produks = Produk::where('kategori_produk_id', $kategori->id)
-            ->with('fotoProduk')
-            ->withCount([
-                'likes as likes_count',
-                'views as views_count',
-            ])
-            ->withExists([
-                'likes as is_liked' => function ($q) use ($sessionId) {
-                    $q->where('session_id', $sessionId);
-                },
-            ])
-            ->get();
+        $produks = $this->withLikeViewAndIsLiked(
+            Produk::query()
+                ->where('kategori_produk_id', $kategori->id)
+                ->with('fotoProduk')
+        )->get();
 
         return view('guest.pages.products', [
             'kategori' => $kategori,
@@ -65,19 +74,9 @@ class PageController extends Controller
 
     public function katalog(Request $request)
     {
-        // *** JANGAN DIUBAH – sesuai versi kamu yang sudah benar ***
-        $sessionId = session()->getId();
-
-        $query = Produk::with('kategoriProduk', 'fotoProduk')
-            ->withCount([
-                'likes as likes_count',
-                'views as views_count',
-            ])
-            ->withExists([
-                'likes as is_liked' => function ($q) use ($sessionId) {
-                    $q->where('session_id', $sessionId);
-                },
-            ]);
+        $query = $this->withLikeViewAndIsLiked(
+            Produk::query()->with('kategoriProduk', 'fotoProduk')
+        );
 
         // ---------- SEARCH ----------
         if ($request->filled('search')) {
@@ -102,7 +101,7 @@ class PageController extends Controller
         if ($request->filled('usaha')) {
             $query->whereHas('usahaProduk.usaha', function ($q) use ($request) {
                 $q->where('id', $request->usaha)
-                    ->where('status_usaha', 'aktif');
+                  ->where('status_usaha', 'aktif');
             });
         }
 
@@ -124,7 +123,6 @@ class PageController extends Controller
                 $query->orderBy('harga', 'desc');
                 break;
             case 'populer':
-                // contoh: urutkan by likes terbanyak
                 $query->orderBy('likes_count', 'desc');
                 break;
             default:
@@ -143,19 +141,10 @@ class PageController extends Controller
 
     public function singleProduct($slug)
     {
-        $sessionId = session()->getId();
-
         // Produk utama
-        $produk = Produk::with(['fotoProduk', 'usaha'])
-            ->withCount([
-                'likes as likes_count',
-                'views as views_count',
-            ])
-            ->withExists([
-                'likes as is_liked' => function ($q) use ($sessionId) {
-                    $q->where('session_id', $sessionId);
-                },
-            ])
+        $produk = $this->withLikeViewAndIsLiked(
+            Produk::query()->with(['fotoProduk', 'usaha'])
+        )
             ->where('slug', $slug)
             ->firstOrFail();
 
@@ -165,16 +154,9 @@ class PageController extends Controller
             ->get();
 
         // Produk terkait
-        $randomProduks = Produk::with('fotoProduk')
-            ->withCount([
-                'likes as likes_count',
-                'views as views_count',
-            ])
-            ->withExists([
-                'likes as is_liked' => function ($q) use ($sessionId) {
-                    $q->where('session_id', $sessionId);
-                },
-            ])
+        $randomProduks = $this->withLikeViewAndIsLiked(
+            Produk::query()->with('fotoProduk')
+        )
             ->where('id', '!=', $produk->id)
             ->inRandomOrder()
             ->limit(4)

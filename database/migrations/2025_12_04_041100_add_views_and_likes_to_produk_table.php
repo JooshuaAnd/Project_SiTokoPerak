@@ -8,24 +8,56 @@ return new class extends Migration
 {
     public function up()
     {
-        // === PRODUK VIEWS (1 session 1x view) ===
+        // === PRODUK VIEWS (1 user/guest 1x view) ===
         Schema::create('produk_views', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('produk_id')->constrained('produk')->onDelete('cascade');
-            $table->string('session_id'); // identitas user/guest
+
+            $table->foreignId('produk_id')
+                ->constrained('produk')
+                ->onDelete('cascade');
+
+            // login user
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            // guest identifier (pakai session()->getId() / token)
+            $table->string('guest_id', 255)->nullable()->index();
+
             $table->timestamps();
 
-            $table->unique(['produk_id', 'session_id']);
+            // Unique untuk user login
+            $table->unique(['produk_id', 'user_id']);
+
+            // Unique untuk guest
+            $table->unique(['produk_id', 'guest_id']);
         });
 
-        // === PRODUK LIKES (1 session 1x like) ===
+        // === PRODUK LIKES (1 user/guest 1x like) ===
         Schema::create('produk_likes', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('produk_id')->constrained('produk')->onDelete('cascade');
-            $table->string('session_id'); // identitas user/guest
+
+            $table->foreignId('produk_id')
+                ->constrained('produk')
+                ->onDelete('cascade');
+
+            // login user
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            // guest identifier
+            $table->string('guest_id', 255)->nullable()->index();
+
             $table->timestamps();
 
-            $table->unique(['produk_id', 'session_id']);
+            // Unique untuk user login
+            $table->unique(['produk_id', 'user_id']);
+
+            // Unique untuk guest
+            $table->unique(['produk_id', 'guest_id']);
         });
     }
 
