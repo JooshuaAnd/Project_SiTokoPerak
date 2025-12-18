@@ -4,6 +4,7 @@
 @section('content_header')
     <h1 style="color:white; font-weight:600;">Dashboard Laporan</h1>
 @stop
+
 @section('content')
     {{-- 🔍 FILTER GLOBAL --}}
     @include('pengerajin.laporan_usaha.filter', [
@@ -17,11 +18,10 @@
         'showPengerajin' => true,
     ])
 
-
     {{-- GRID DASHBOARD UTAMA --}}
     <div class="dashboard-grid">
 
-        {{-- METRIC ATAS --}}
+        {{-- ROW 1: METRIC ATAS (4 x 3 kolom) --}}
         <div class="card-modern" style="grid-column: span 3;">
             <div class="metric-label">Total Transaksi</div>
             <div class="metric-value">{{ number_format($totalTransaksi ?? 0, 0, ',', '.') }}</div>
@@ -34,21 +34,21 @@
             </div>
         </div>
 
-        <div class="card-modern" style="grid-column: span 3;"> {{-- METRIC 3: PRODUK TERLARIS --}}
+        <div class="card-modern" style="grid-column: span 3;">
             <div class="metric-label">Produk Terlaris (Penjualan)</div>
             <div class="metric-value" style="font-size: 22px;">
                 {{ $topProduk ?? 'N/A' }}
             </div>
         </div>
 
-        <div class="card-modern" style="grid-column: span 3;"> {{-- METRIC 4: USER AKTIF TERTINGGI --}}
+        <div class="card-modern" style="grid-column: span 3;">
             <div class="metric-label">User Aktif Tertinggi</div>
             <div class="metric-value" style="font-size: 22px;">
                 {{ $userAktif ?? 'N/A' }}
             </div>
         </div>
 
-        {{-- 📈 Performa penjualan 5 usaha teratas --}}
+        {{-- ROW 2: PERFORMA PENJUALAN (full width) --}}
         <div class="card-modern" style="grid-column: span 12;">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <h5 class="mb-0">📈 Performa Penjualan Usaha (Maks. 5 Teratas)</h5>
@@ -56,43 +56,57 @@
                     <span style="font-size: 12px; opacity:.8;">Periode: {{ $periodeLabel }}</span>
                 @endif
             </div>
-            <div class="chart-box"><canvas id="chartPerforma"></canvas></div>
-        </div>
-        {{-- CHART 1: PENDAPATAN PER USAHA (Span 6) --}}
-        <div class="card-modern" style="grid-column: span 6;">
-            <h5>💰 Pendapatan Top 3 Usaha (Yang Anda Kelola)</h5>
-            <div class="chart-box"><canvas id="chartPendapatan"></canvas></div>
-        </div>
-        {{-- TOP 3 KATEGORI --}}
-        <div class="card-modern" style="grid-column: span 4;">
-            <h5>📦 Top 3 Kategori Produk (Total Terjual)</h5>
-            <div class="chart-box"><canvas id="chartKategori"></canvas></div>
+            <div class="chart-box" style="min-height: 260px;">
+                <canvas id="chartPerforma"></canvas>
+            </div>
         </div>
 
-        {{-- TOP 3 PRODUK: TERLARIS / FAVORITE / DILIHAT --}}
+        {{-- ROW 3: PENDAPATAN & KATEGORI (6 + 6) --}}
+        <div class="card-modern" style="grid-column: span 6;">
+            <h5>💰 Pendapatan Top 3 Usaha (Yang Anda Kelola)</h5>
+            <div class="chart-box" style="min-height: 260px;">
+                <canvas id="chartPendapatan"></canvas>
+            </div>
+        </div>
+
+        <div class="card-modern" style="grid-column: span 6;">
+            <h5>📦 Top 3 Kategori Produk (Total Terjual)</h5>
+            <div class="chart-box" style="min-height: 260px;">
+                <canvas id="chartKategori"></canvas>
+            </div>
+        </div>
+
+        {{-- ROW 4: TOP PRODUK (3 x 4 kolom) --}}
         <div class="card-modern" style="grid-column: span 4;">
             <h5>🔥 Top 3 Produk Terlaris (Penjualan)</h5>
-            <div class="chart-box"><canvas id="chartTerlaris"></canvas></div>
+            <div class="chart-box" style="min-height: 220px;">
+                <canvas id="chartTerlaris"></canvas>
+            </div>
         </div>
 
         <div class="card-modern" style="grid-column: span 4;">
             <h5>❤️ Top 3 Produk Favorite (Like)</h5>
-            <div class="chart-box"><canvas id="chartFavorite"></canvas></div>
+            <div class="chart-box" style="min-height: 220px;">
+                <canvas id="chartFavorite"></canvas>
+            </div>
         </div>
 
-        <div class="card-modern" style="grid-column: span 6;">
+        <div class="card-modern" style="grid-column: span 4;">
             <h5>👁️ Top 3 Produk Dilihat</h5>
-            <div class="chart-box"><canvas id="chartViews"></canvas></div>
+            <div class="chart-box" style="min-height: 220px;">
+                <canvas id="chartViews"></canvas>
+            </div>
         </div>
 
-        {{-- CHART 6: TOP USER (Pembeli) (Span 6) --}}
+        {{-- ROW 5: TOP USER (full width) --}}
         <div class="card-modern" style="grid-column: span 12;">
             <h5>👥 Top 3 User Aktif (Jumlah Transaksi)</h5>
-            <div class="chart-box"><canvas id="chartUser"></canvas></div>
+            <div class="chart-box" style="min-height: 220px;">
+                <canvas id="chartUser"></canvas>
+            </div>
         </div>
 
     </div>
-
 @stop
 
 @section('js')
@@ -213,7 +227,7 @@
             });
         }
 
-        // Helper line chart performa penjualan
+        // Line chart performa penjualan
         function chartPerformaLine(id, labels, datasetsConfig) {
             if (!labels || labels.length === 0 || !datasetsConfig || datasetsConfig.length === 0) {
                 const el = document.getElementById(id);
@@ -292,18 +306,10 @@
             });
         }
 
-        // --- Inisialisasi grafik ---
-
-        // Pendapatan per usaha
-        chartBasic('chartPendapatan', 'bar', data.pendapatan.labels, data.pendapatan.data, false);
-
-        // Performa penjualan (line)
+        // Inisialisasi grafik
         chartPerformaLine('chartPerforma', data.performa.labels, data.performa.datasets);
-
-        // Kategori (donut)
-        chartBasic('chartKategori', 'doughnut', data.kategori.labels, data.kategori.data, true);
-
-        // Lain-lain (bar horizontal)
+        chartBasic('chartPendapatan', 'bar', data.pendapatan.labels, data.pendapatan.data, false);
+        chartBasic('chartKategori', 'doughnut', data.kategori.labels, data.kategori.data, false);
         chartBasic('chartTerlaris', 'bar', data.terlaris.labels, data.terlaris.data, true);
         chartBasic('chartFavorite', 'bar', data.favorite.labels, data.favorite.data, true);
         chartBasic('chartViews', 'bar', data.views.labels, data.views.data, true);

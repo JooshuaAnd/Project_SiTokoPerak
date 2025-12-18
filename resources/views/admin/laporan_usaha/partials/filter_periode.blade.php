@@ -15,17 +15,31 @@
     <div class="col-12">
         <hr style="border-color:rgba(255,255,255,0.08);margin:8px 0 14px;">
         <span style="color:#b8ccdf; font-size:13px; opacity:.9;">
-            <i class="fas fa-calendar-alt"></i> Opsi filter periode (opsional). Kalau dikosongkan, sistem pakai tanggal
-            <strong>Mulai / Akhir</strong> biasa.
+            <i class="fas fa-calendar-alt"></i>
+            Opsi filter periode (opsional).
+            <br>
+            <tr>
+                <td>Periode Tertentu (Tanggal)</td>Pilih <strong>Periode Tertentu</strong> → isi <strong>Tanggal Mulai /
+                    Akhir</strong> di bawah.</br>
+            </tr>
+            </tr>
+            <tr>
+                <td>Per Hari / Minggu / Bulan / Tahun</td>Pilih<strong>Per Hari / Minggu / Bulan / Tahun</strong> →
+                sistem otomatis hitung rentang tanggalnya.</td>
+            </tr>
         </span>
     </div>
 
     <div class="col-12 d-flex flex-wrap align-items-end">
+
         {{-- Jenis Periode --}}
         <div class="form-group col-md-3 col-sm-6 mt-2" style="margin-top: 10px !important;">
             <label style="color:#b8ccdf;">Jenis Periode</label>
             <select name="periode_type" id="periode_type" class="form-control">
-                <option value="" {{ $periodeType == null ? 'selected' : '' }}>Custom (Tanggal)</option>
+                {{-- value kosong = "Periode Tertentu" pakai start_date / end_date --}}
+                <option value="" {{ $periodeType == null ? 'selected' : '' }}>
+                    Periode Tertentu (Tanggal)
+                </option>
                 <option value="day" {{ $periodeType == 'day' ? 'selected' : '' }}>Per Hari</option>
                 <option value="week" {{ $periodeType == 'week' ? 'selected' : '' }}>Per Minggu</option>
                 <option value="month" {{ $periodeType == 'month' ? 'selected' : '' }}>Per Bulan</option>
@@ -33,26 +47,41 @@
             </select>
         </div>
 
+        {{-- 🔹 Periode Tertentu: Tanggal Mulai / Akhir (start_date / end_date) --}}
+        <div class="form-group col-md-4 col-sm-6 mt-2 periode-input periode-custom"
+            style="margin-top: 10px !important;">
+            <label style="color:#b8ccdf;">Periode Tertentu</label>
+            <div class="d-flex">
+                <input type="date" name="start_date" class="form-control mr-1" value="{{ request('start_date') }}"
+                    placeholder="Mulai">
+                <input type="date" name="end_date" class="form-control ml-1" value="{{ request('end_date') }}"
+                    placeholder="Akhir">
+            </div>
+        </div>
+
         {{-- Per Hari --}}
-        <div class="form-group col-md-3 col-sm-6 mt-2 periode-input periode-day d-none" style="margin-top: 10px !important;">
+        <div class="form-group col-md-3 col-sm-6 mt-2 periode-input periode-day d-none"
+            style="margin-top: 10px !important;">
             <label style="color:#b8ccdf;">Tanggal (Hari)</label>
             <input type="date" name="periode_day" class="form-control" value="{{ request('periode_day') }}">
         </div>
 
-    {{-- Per Minggu --}}
-    <div class="form-group col-md-3 col-sm-6 mt-2 periode-input periode-week d-none" style="margin-top: 10px !important;">
-        <label style="color:#b8ccdf;">Minggu (ISO Week)</label>
-        {{-- format: YYYY-Www  contoh: 2025-W09 --}}
-        <input type="week" name="periode_week" class="form-control" value="{{ request('periode_week') }}">
-    </div>
+        {{-- Per Minggu --}}
+        <div class="form-group col-md-3 col-sm-6 mt-2 periode-input periode-week d-none"
+            style="margin-top: 10px !important;">
+            <label style="color:#b8ccdf;">Minggu (ISO Week)</label>
+            {{-- format: YYYY-Www  contoh: 2025-W09 --}}
+            <input type="week" name="periode_week" class="form-control" value="{{ request('periode_week') }}">
+        </div>
 
-    {{-- Per Bulan --}}
-    <div class="form-group col-md-3 col-sm-6 mt-2 periode-input periode-month d-none" style="margin-top: 10px !important;">
-        <label style="color:#b8ccdf;">Bulan & Tahun</label>
-        <div class="d-flex">
-            <select name="periode_month" class="form-control mr-1">
-                <option value="">Bulan</option>
-                @foreach ([
+        {{-- Per Bulan --}}
+        <div class="form-group col-md-3 col-sm-6 mt-2 periode-input periode-month d-none"
+            style="margin-top: 10px !important;">
+            <label style="color:#b8ccdf;">Bulan & Tahun</label>
+            <div class="d-flex">
+                <select name="periode_month" class="form-control mr-1">
+                    <option value="">Bulan</option>
+                    @foreach ([
         1 => 'Jan',
         2 => 'Feb',
         3 => 'Mar',
@@ -66,13 +95,29 @@
         11 => 'Nov',
         12 => 'Des',
     ] as $val => $label)
-                    <option value="{{ $val }}" {{ (int) $selectedMonth === $val ? 'selected' : '' }}>
-                        {{ $label }}
-                    </option>
-                @endforeach
-            </select>
-            <select name="periode_year" class="form-control ml-1">
-                <option value="">Tahun</option>
+                        <option value="{{ $val }}" {{ (int) $selectedMonth === $val ? 'selected' : '' }}>
+                            {{ $label }}
+                        </option>
+                    @endforeach
+                </select>
+                <select name="periode_year" class="form-control ml-1">
+                    <option value="">Tahun</option>
+                    @foreach ($tahunList as $tahun)
+                        <option value="{{ $tahun }}"
+                            {{ (int) $selectedYear === (int) $tahun ? 'selected' : '' }}>
+                            {{ $tahun }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        {{-- Per Tahun --}}
+        <div class="form-group col-md-3 col-sm-6 mt-2 periode-input periode-year d-none"
+            style="margin-top: 10px !important;">
+            <label style="color:#b8ccdf;">Tahun</label>
+            <select name="periode_year" class="form-control">
+                <option value="">Pilih Tahun</option>
                 @foreach ($tahunList as $tahun)
                     <option value="{{ $tahun }}" {{ (int) $selectedYear === (int) $tahun ? 'selected' : '' }}>
                         {{ $tahun }}
@@ -80,20 +125,6 @@
                 @endforeach
             </select>
         </div>
-    </div>
-
-    {{-- Per Tahun --}}
-    <div class="form-group col-md-3 col-sm-6 mt-2 periode-input periode-year d-none" style="margin-top: 10px !important;">
-        <label style="color:#b8ccdf;">Tahun</label>
-        <select name="periode_year" class="form-control">
-            <option value="">Pilih Tahun</option>
-            @foreach ($tahunList as $tahun)
-                <option value="{{ $tahun }}" {{ (int) $selectedYear === (int) $tahun ? 'selected' : '' }}>
-                    {{ $tahun }}
-                </option>
-            @endforeach
-        </select>
-    </div>
     </div>
 </div>
 
