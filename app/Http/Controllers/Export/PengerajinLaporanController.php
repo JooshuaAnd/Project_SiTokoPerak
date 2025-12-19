@@ -24,12 +24,14 @@ class PengerajinLaporanController extends Controller
     protected function getPengerajinContext(): array
     {
         $userId = Auth::id();
-        if (!Auth::check() || !$userId)
+        if (!Auth::check() || !$userId) {
             abort(401, 'Silakan login.');
+        }
 
         $pengerajin = Pengerajin::where('user_id', $userId)->first();
-        if (!$pengerajin)
+        if (!$pengerajin) {
             abort(403, 'Akses ditolak. Akun Anda tidak terdaftar sebagai Pengerajin aktif.');
+        }
 
         $pengerajinId = (int) $pengerajin->id;
 
@@ -39,8 +41,9 @@ class PengerajinLaporanController extends Controller
             ->map(fn($id) => (int) $id)
             ->toArray();
 
-        if (empty($usahaIds))
+        if (empty($usahaIds)) {
             abort(403, 'Akses ditolak. Pengerajin ini belum dipetakan ke usaha manapun.');
+        }
 
         return [$pengerajinId, $usahaIds];
     }
@@ -49,59 +52,87 @@ class PengerajinLaporanController extends Controller
     {
         return DB::table('pengerajin as p')
             ->join('usaha_pengerajin as up', 'up.pengerajin_id', '=', 'p.id')
-            ->when($selectedUsahaId, function ($q) use ($selectedUsahaId) {
-                $q->where('up.usaha_id', $selectedUsahaId);
-            }, function ($q) use ($usahaIds) {
-                $q->whereIn('up.usaha_id', $usahaIds);
-            })
+            ->when(
+                $selectedUsahaId,
+                fn($q) => $q->where('up.usaha_id', $selectedUsahaId),
+                fn($q) => $q->whereIn('up.usaha_id', $usahaIds)
+            )
             ->select('p.id', 'p.nama_pengerajin')
             ->distinct()
             ->orderBy('p.nama_pengerajin')
             ->get();
     }
 
+    /**
+     * Logika filter pengerajin (DISESUAIKAN DENGAN DASHBOARD):
+     * - Kalau field `pengerajin_id` ADA di request:
+     *     - "" / null  -> user pilih "Semua Pengerajin"  => return null (tanpa WHERE)
+     *     - angka      -> validasi ke usaha_pengerajin   => return id
+     * - Kalau TIDAK ADA field `pengerajin_id` (halaman baru dibuka):
+     *     -> default ke pengerajin yang login
+     */
     protected function resolveFilterPengerajinId(Request $request, int $loginPengerajinId, array $usahaIds): ?int
     {
-        if ($request->filled('pengerajin_id')) {
-            $id = (int) $request->pengerajin_id;
+        // Kalau form sudah pernah di-submit, selalu ada field pengerajin_id (bisa kosong)
+        if ($request->has('pengerajin_id')) {
+            $raw = $request->input('pengerajin_id');
+
+            // Pilih "Semua Pengerajin"
+            if ($raw === null || $raw === '') {
+                return null;
+            }
+
+            $id = (int) $raw;
 
             $allowed = DB::table('usaha_pengerajin')
                 ->whereIn('usaha_id', $usahaIds)
                 ->where('pengerajin_id', $id)
                 ->exists();
 
-            if (!$allowed)
+            if (!$allowed) {
                 abort(403, 'Pengerajin tidak valid untuk usaha ini.');
+            }
+
             return $id;
         }
 
+        // (fallback) kalau entah kenapa ada apply_filters tapi nggak ada field pengerajin_id → anggap semua
         if ($request->has('apply_filters')) {
-            return null; // SEMUA
+            return null;
         }
 
+        // Field belum ada sama sekali ⇒ halaman baru dibuka ⇒ default ke pengerajin login
         $request->merge(['pengerajin_id' => $loginPengerajinId]);
+
         return $loginPengerajinId;
     }
 
     /**
-     * FIX: sekarang pasti filter pengerajin pakai produk.pengerajin_id
-     * (karena order_items sudah pakai produk_id, bukan usaha_produk_id)
+     * Selalu filter by produk.pengerajin_id kalau $filterPengerajinId tidak null.
+     * Kalau null → artinya "semua pengerajin" di dalam $usahaIds.
      */
     protected function applyPengerajinFilter(Builder $q, ?int $filterPengerajinId, string $pAlias = 'p'): Builder
     {
-        if (!$filterPengerajinId)
+        if (!$filterPengerajinId) {
+            // semua pengerajin (sesuai usahaIds)
             return $q;
+        }
+
         return $q->where("$pAlias.pengerajin_id", $filterPengerajinId);
     }
 
     // =========================================================================
-    // HELPER TANGGAL
+    // HELPER TANGGAL (SAMA DENGAN CONTROLLER DASHBOARD)
     // =========================================================================
     protected function resolveDateRange(Request $request, ?int $defaultLastDays = null): array
     {
         $periodeType = $request->input('periode_type');
-        $start = $request->input('start_date');
-        $end = $request->input('end_date');
+
+        // support 2 nama field:
+        // - start_date / end_date          (lama)
+        // - periode_tentu_start / _end     (baru, di row "Periode Tertentu")
+        $start = $request->input('periode_tentu_start', $request->input('start_date'));
+        $end = $request->input('periode_tentu_end', $request->input('end_date'));
 
         $startCarbon = $start ? Carbon::parse($start)->startOfDay() : null;
         $endCarbon = $end ? Carbon::parse($end)->endOfDay() : null;
@@ -117,13 +148,13 @@ class PengerajinLaporanController extends Controller
 
             case 'week':
                 if ($request->filled('periode_week')) {
-                    $weekInput = $request->input('periode_week'); // "2025-W09"
                     try {
-                        [$year, $week] = explode('-W', $weekInput);
+                        [$year, $week] = explode('-W', $request->input('periode_week'));
                         $tmp = Carbon::now()->setISODate((int) $year, (int) $week);
                         $startCarbon = $tmp->copy()->startOfDay();
                         $endCarbon = $tmp->copy()->endOfWeek();
                     } catch (\Throwable $e) {
+                        // biarkan jatuh ke nilai sebelumnya
                     }
                 }
                 break;
@@ -148,6 +179,7 @@ class PengerajinLaporanController extends Controller
                 break;
         }
 
+        // Default X hari terakhir (kalau diminta pakai default)
         if (!$startCarbon && !$endCarbon && $defaultLastDays) {
             $endCarbon = Carbon::now()->endOfDay();
             $startCarbon = $endCarbon->copy()->subDays($defaultLastDays - 1)->startOfDay();
@@ -157,7 +189,7 @@ class PengerajinLaporanController extends Controller
     }
 
     // =========================================================================
-    // PENDAPATAN PER USAHA (FIX: no usaha_produk, no oi.usaha_produk_id)
+    // PENDAPATAN PER USAHA
     // =========================================================================
     protected function basePendapatanUsahaQueryPengerajin(Request $request): Builder
     {
@@ -176,14 +208,18 @@ class PengerajinLaporanController extends Controller
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
-        if ($request->filled('usaha_id'))
+        if ($request->filled('usaha_id')) {
             $query->where('us.id', $request->usaha_id);
-        if ($request->filled('kategori_id'))
+        }
+        if ($request->filled('kategori_id')) {
             $query->where('k.id', $request->kategori_id);
-        if ($start)
+        }
+        if ($start) {
             $query->whereDate('o.created_at', '>=', $start);
-        if ($end)
+        }
+        if ($end) {
             $query->whereDate('o.created_at', '<=', $end);
+        }
 
         return $query;
     }
@@ -256,7 +292,7 @@ class PengerajinLaporanController extends Controller
     }
 
     // =========================================================================
-    // SEMUA TRANSAKSI (FIX: total seller = SUM item, bukan o.total_amount)
+    // SEMUA TRANSAKSI (total seller = SUM item, bukan o.total_amount)
     // =========================================================================
     protected function baseTransaksiQueryPengerajin(Request $request): Builder
     {
@@ -274,18 +310,25 @@ class PengerajinLaporanController extends Controller
 
         $base = $this->applyPengerajinFilter($base, $filterPengerajinId, 'p');
 
+        // Periode di halaman ini pakai helper baru (periode_tentu_* juga kebaca)
         [$start, $end] = $this->resolveDateRange($request, null);
 
-        if ($request->filled('status'))
+        if ($request->filled('status')) {
             $base->where('o.status', $request->status);
-        if ($request->filled('usaha_id'))
+        }
+        if ($request->filled('usaha_id')) {
             $base->where('us.id', $request->usaha_id);
-        if ($request->filled('kategori_id'))
+        }
+        if ($request->filled('kategori_id')) {
             $base->where('k.id', $request->kategori_id);
-        if ($start)
+        }
+
+        if ($start) {
             $base->whereDate('o.created_at', '>=', $start);
-        if ($end)
+        }
+        if ($end) {
             $base->whereDate('o.created_at', '<=', $end);
+        }
 
         return $base;
     }
@@ -325,7 +368,7 @@ class PengerajinLaporanController extends Controller
     }
 
     // =========================================================================
-    // KATEGORI PRODUK (FIX: no usaha_produk)
+    // KATEGORI PRODUK
     // =========================================================================
     protected function baseKategoriProdukQueryPengerajin(Request $request): Builder
     {
@@ -344,12 +387,15 @@ class PengerajinLaporanController extends Controller
 
         $query = $this->applyPengerajinFilter($query, $filterPengerajinId, 'p');
 
-        if ($request->filled('usaha_id'))
+        if ($request->filled('usaha_id')) {
             $query->where('us.id', $request->usaha_id);
-        if ($start)
+        }
+        if ($start) {
             $query->whereDate('o.created_at', '>=', $start);
-        if ($end)
+        }
+        if ($end) {
             $query->whereDate('o.created_at', '<=', $end);
+        }
 
         return $query;
     }
@@ -396,7 +442,7 @@ class PengerajinLaporanController extends Controller
     }
 
     // =========================================================================
-    // PRODUK FAVORITE (FIX: no usaha_produk)
+    // PRODUK FAVORITE (LIKE)
     // =========================================================================
     protected function baseProdukFavoriteQueryPengerajin(Request $request): Builder
     {
@@ -413,12 +459,15 @@ class PengerajinLaporanController extends Controller
 
         $query = $this->applyPengerajinFilter($query, $filterPengerajinId, 'p');
 
-        if ($request->filled('usaha_id'))
+        if ($request->filled('usaha_id')) {
             $query->where('us.id', $request->usaha_id);
-        if ($start)
+        }
+        if ($start) {
             $query->whereDate('pl.created_at', '>=', $start);
-        if ($end)
+        }
+        if ($end) {
             $query->whereDate('pl.created_at', '<=', $end);
+        }
 
         return $query;
     }
@@ -461,7 +510,7 @@ class PengerajinLaporanController extends Controller
     }
 
     // =========================================================================
-    // PRODUK SLOW MOVING (FIX: no usaha_produk, filter pakai oi.created_at)
+    // PRODUK SLOW MOVING (pakai oi.created_at)
     // =========================================================================
     protected function baseProdukSlowMovingQueryPengerajin(Request $request, ?string $start, ?string $end, int $threshold): Builder
     {
@@ -474,19 +523,23 @@ class PengerajinLaporanController extends Controller
             ->join('usaha as us', 'us.id', '=', 'map.usaha_id')
             ->leftJoin('order_items as oi', function ($join) use ($start, $end) {
                 $join->on('oi.produk_id', '=', 'p.id');
-                if ($start)
+                if ($start) {
                     $join->whereDate('oi.created_at', '>=', $start);
-                if ($end)
+                }
+                if ($end) {
                     $join->whereDate('oi.created_at', '<=', $end);
+                }
             })
             ->whereIn('map.usaha_id', $usahaIds);
 
         $query = $this->applyPengerajinFilter($query, $filterPengerajinId, 'p');
 
-        if ($request->filled('usaha_id'))
+        if ($request->filled('usaha_id')) {
             $query->where('us.id', $request->usaha_id);
-        if ($request->filled('kategori_id'))
+        }
+        if ($request->filled('kategori_id')) {
             $query->where('k.id', $request->kategori_id);
+        }
 
         $query->groupBy('p.id', 'p.nama_produk', 'us.id', 'us.nama_usaha')
             ->selectRaw('
@@ -554,7 +607,7 @@ class PengerajinLaporanController extends Controller
     }
 
     // =========================================================================
-    // PRODUK TERLARIS (FIX: no usaha_produk)
+    // PRODUK TERLARIS
     // =========================================================================
     protected function baseProdukTerlarisQueryPengerajin(Request $request): Builder
     {
@@ -572,14 +625,18 @@ class PengerajinLaporanController extends Controller
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
-        if ($request->filled('usaha_id'))
+        if ($request->filled('usaha_id')) {
             $query->where('us.id', $request->usaha_id);
-        if ($request->filled('kategori_id'))
+        }
+        if ($request->filled('kategori_id')) {
             $query->where('p.kategori_produk_id', $request->kategori_id);
-        if ($start)
+        }
+        if ($start) {
             $query->whereDate('o.created_at', '>=', $start);
-        if ($end)
+        }
+        if ($end) {
             $query->whereDate('o.created_at', '<=', $end);
+        }
 
         return $query;
     }
@@ -633,7 +690,7 @@ class PengerajinLaporanController extends Controller
     }
 
     // =========================================================================
-    // PRODUK VIEWS (FIX: no usaha_produk)
+    // PRODUK VIEWS
     // =========================================================================
     protected function baseProdukViewsQueryPengerajin(Request $request): Builder
     {
@@ -650,12 +707,15 @@ class PengerajinLaporanController extends Controller
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
-        if ($request->filled('usaha_id'))
+        if ($request->filled('usaha_id')) {
             $viewsQuery->where('us.id', $request->usaha_id);
-        if ($start)
+        }
+        if ($start) {
             $viewsQuery->whereDate('pv.created_at', '>=', $start);
-        if ($end)
+        }
+        if ($end) {
             $viewsQuery->whereDate('pv.created_at', '<=', $end);
+        }
 
         return $viewsQuery;
     }
@@ -708,7 +768,7 @@ class PengerajinLaporanController extends Controller
     }
 
     // =========================================================================
-    // TRANSAKSI PER USER (FIX: no usaha_produk)
+    // TRANSAKSI PER USER
     // =========================================================================
     protected function baseTransaksiUserQueryPengerajin(Request $request): Builder
     {
@@ -728,14 +788,18 @@ class PengerajinLaporanController extends Controller
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
-        if ($request->filled('usaha_id'))
+        if ($request->filled('usaha_id')) {
             $query->where('us.id', $request->usaha_id);
-        if ($request->filled('kategori_id'))
+        }
+        if ($request->filled('kategori_id')) {
             $query->where('k.id', $request->kategori_id);
-        if ($start)
+        }
+        if ($start) {
             $query->whereDate('o.created_at', '>=', $start);
-        if ($end)
+        }
+        if ($end) {
             $query->whereDate('o.created_at', '<=', $end);
+        }
 
         return $query;
     }
@@ -796,7 +860,7 @@ class PengerajinLaporanController extends Controller
     }
 
     // =========================================================================
-    // VIEW: SEMUA TRANSAKSI (FIX: total seller = SUM item)
+    // VIEW: SEMUA TRANSAKSI
     // =========================================================================
     public function transaksi(Request $request)
     {
@@ -811,6 +875,7 @@ class PengerajinLaporanController extends Controller
 
         $base = $this->baseTransaksiQueryPengerajin($request);
 
+        // daftar user untuk filter
         $userList = (clone $base)
             ->whereNotNull('u.id')
             ->select('u.id', 'u.username')
@@ -822,6 +887,7 @@ class PengerajinLaporanController extends Controller
             $base->where('o.user_id', $request->user_id);
         }
 
+        // data transaksi per order (seller total)
         $transaksi = (clone $base)
             ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.status', 'o.created_at')
             ->selectRaw('
@@ -835,7 +901,11 @@ class PengerajinLaporanController extends Controller
             ->get();
 
         $totalTransaksi = $transaksi->count();
-        $totalNominal = (int) $transaksi->sum('total');
+
+        // akumulasi nominal pakai base yang sama (biar pasti sejalan dengan list)
+        $totalNominal = (clone $base)
+            ->selectRaw('COALESCE(SUM(oi.quantity * oi.price_at_purchase), 0) as total')
+            ->value('total') ?? 0;
 
         return view('pengerajin.laporan_usaha.transaksi', compact(
             'usahaList',
