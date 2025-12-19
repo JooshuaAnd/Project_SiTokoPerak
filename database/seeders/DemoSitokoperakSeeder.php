@@ -17,7 +17,6 @@ class DemoSitokoperakSeeder extends Seeder
             // ==========================================================
             // 0) Bersihin (opsional kalau kamu migrate:fresh --seed)
             // ==========================================================
-            // Kalau kamu selalu migrate:fresh, bagian ini boleh dihapus.
             DB::table('order_items')->delete();
             DB::table('orders')->delete();
             DB::table('produk_likes')->delete();
@@ -30,10 +29,7 @@ class DemoSitokoperakSeeder extends Seeder
             DB::table('usaha')->delete();
             DB::table('pengerajin')->delete();
 
-            // HATI-HATI: users mungkin dipakai login kamu. Kalau aman, boleh delete juga.
-            // Kalau tidak mau hapus semua users, comment 2 baris ini.
             DB::table('users')->whereIn('role', ['pengerajin', 'guest'])->delete();
-            // DB::table('users')->delete();
 
             DB::table('kategori_produk')->delete();
             DB::table('jenis_usaha')->delete();
@@ -81,8 +77,7 @@ class DemoSitokoperakSeeder extends Seeder
             }
 
             // ==========================================================
-            // 3) USERS (PENGERAJIN + CUSTOMER/GUEST)
-            //    password pengerajin selalu 12345 (hashed)
+            // 3) USERS (PENGERAJIN + CUSTOMER(role=guest))
             // ==========================================================
             $pengerajinUsers = [
                 ['username' => 'pengerajin_andi', 'email' => 'andi.pengerajin@example.com', 'name' => 'Andi Pengerajin'],
@@ -109,9 +104,9 @@ class DemoSitokoperakSeeder extends Seeder
             }
 
             // customer (role = guest)
-            $guestIds = [];
+            $customerUserIds = [];
             for ($i = 1; $i <= 12; $i++) {
-                $guestIds[] = DB::table('users')->insertGetId([
+                $customerUserIds[] = DB::table('users')->insertGetId([
                     'username' => 'customer_' . $i,
                     'name' => 'Customer ' . $i,
                     'email' => 'customer' . $i . '@example.com',
@@ -126,7 +121,7 @@ class DemoSitokoperakSeeder extends Seeder
             }
 
             // ==========================================================
-            // 4) PENGERAJIN (1 user pengerajin -> 1 row pengerajin)
+            // 4) PENGERAJIN
             // ==========================================================
             $pengerajinIds = [];
             foreach ($pengerajinUserIds as $idx => $userId) {
@@ -145,8 +140,7 @@ class DemoSitokoperakSeeder extends Seeder
             }
 
             // ==========================================================
-            // 5) USAHA (TOKO)
-            //    aturan: 1 usaha cuma 1 pengerajin & 1 pengerajin cuma 1 usaha (1:1)
+            // 5) USAHA + PIVOT
             // ==========================================================
             $usahaData = [
                 ['kode' => 'US-001', 'nama' => 'Toko Anyam Indah', 'jenis_idx' => 0],
@@ -173,7 +167,6 @@ class DemoSitokoperakSeeder extends Seeder
 
                 $usahaIds[] = $usahaId;
 
-                // pivot usaha_jenis
                 DB::table('usaha_jenis')->insert([
                     'usaha_id' => $usahaId,
                     'jenis_usaha_id' => $jenisIds[$u['jenis_idx']],
@@ -182,8 +175,6 @@ class DemoSitokoperakSeeder extends Seeder
                 ]);
             }
 
-            // usaha_pengerajin (1:1)
-            // map usaha[0] -> pengerajin[0], dst (unik di kedua sisi)
             foreach ($usahaIds as $i => $usahaId) {
                 DB::table('usaha_pengerajin')->insert([
                     'usaha_id' => $usahaId,
@@ -194,8 +185,7 @@ class DemoSitokoperakSeeder extends Seeder
             }
 
             // ==========================================================
-            // 6) PRODUK + USAHA_PRODUK
-            //    produk harus sesuai pengerajin (produk.pengerajin_id)
+            // 6) PRODUK + USAHA_PRODUK + FOTO_PRODUK
             // ==========================================================
             $produkByUsaha = []; // usaha_id => [produk_id...]
             $allProduk = [];     // list produk (id, harga)
@@ -212,7 +202,6 @@ class DemoSitokoperakSeeder extends Seeder
                 $usahaId = $usahaIds[$i];
                 $pengerajinId = $pengerajinIds[$i];
 
-                // tentukan “tema” produk per toko biar realistis
                 $tema = match ($i) {
                     0 => 'Anyaman',
                     1 => 'Batik',
@@ -223,13 +212,12 @@ class DemoSitokoperakSeeder extends Seeder
 
                 $produkByUsaha[$usahaId] = [];
 
-                // bikin banyak produk per toko
-                $jumlahProduk = 10; // bisa kamu gedein
+                $jumlahProduk = 10;
                 for ($p = 1; $p <= $jumlahProduk; $p++) {
                     $baseName = $namaProdukPool[$tema][array_rand($namaProdukPool[$tema])];
                     $nama = $baseName . ' ' . ($p);
 
-                    $slug = Str::slug($tema . '-' . $u = $usahaData[$i]['kode'] . '-' . $nama . '-' . Str::random(4));
+                    $slug = Str::slug($tema . '-' . $usahaData[$i]['kode'] . '-' . $nama . '-' . Str::random(4));
                     $harga = rand(25000, 250000);
                     $stok = rand(10, 150);
 
@@ -248,7 +236,6 @@ class DemoSitokoperakSeeder extends Seeder
                         'updated_at' => now(),
                     ]);
 
-                    // mapping usaha_produk
                     DB::table('usaha_produk')->insert([
                         'usaha_id' => $usahaId,
                         'produk_id' => $produkId,
@@ -259,7 +246,6 @@ class DemoSitokoperakSeeder extends Seeder
                     $produkByUsaha[$usahaId][] = $produkId;
                     $allProduk[] = ['id' => $produkId, 'harga' => $harga];
 
-                    // foto_produk (opsional tapi bikin tabel kepake)
                     DB::table('foto_produk')->insert([
                         'kode_foto_produk' => 'FOTO-' . strtoupper(Str::random(10)),
                         'produk_id' => $produkId,
@@ -271,32 +257,69 @@ class DemoSitokoperakSeeder extends Seeder
             }
 
             // ==========================================================
-            // 7) PRODUK_VIEWS & PRODUK_LIKES (biar grafik gak kosong)
+            // 7) PRODUK_VIEWS & PRODUK_LIKES (SESUAI MIGRATION BARU)
+            //    kolom: produk_id, user_id(nullable), guest_id(nullable)
             // ==========================================================
             foreach ($allProduk as $prod) {
+                // VIEWS
                 $views = rand(0, 25);
                 for ($v = 0; $v < $views; $v++) {
-                    DB::table('produk_views')->insert([
-                        'produk_id' => $prod['id'],
-                        'session_id' => (string) Str::uuid(),
-                        'created_at' => Carbon::now()->subDays(rand(0, 60)),
-                        'updated_at' => now(),
-                    ]);
+                    $createdAt = Carbon::now()->subDays(rand(0, 60));
+
+                    // 60% view dari customer login, 40% view guest random
+                    $asUser = (rand(1, 100) <= 60);
+
+                    if ($asUser) {
+                        $userId = $customerUserIds[array_rand($customerUserIds)];
+                        DB::table('produk_views')->insertOrIgnore([
+                            'produk_id' => $prod['id'],
+                            'user_id' => $userId,
+                            'guest_id' => null,
+                            'created_at' => $createdAt,
+                            'updated_at' => $createdAt,
+                        ]);
+                    } else {
+                        DB::table('produk_views')->insertOrIgnore([
+                            'produk_id' => $prod['id'],
+                            'user_id' => null,
+                            'guest_id' => (string) Str::uuid(),
+                            'created_at' => $createdAt,
+                            'updated_at' => $createdAt,
+                        ]);
+                    }
                 }
 
+                // LIKES
                 $likes = rand(0, 8);
                 for ($l = 0; $l < $likes; $l++) {
-                    DB::table('produk_likes')->insert([
-                        'produk_id' => $prod['id'],
-                        'session_id' => (string) Str::uuid(),
-                        'created_at' => Carbon::now()->subDays(rand(0, 60)),
-                        'updated_at' => now(),
-                    ]);
+                    $createdAt = Carbon::now()->subDays(rand(0, 60));
+
+                    // 70% like dari customer login, 30% guest random
+                    $asUser = (rand(1, 100) <= 70);
+
+                    if ($asUser) {
+                        $userId = $customerUserIds[array_rand($customerUserIds)];
+                        DB::table('produk_likes')->insertOrIgnore([
+                            'produk_id' => $prod['id'],
+                            'user_id' => $userId,
+                            'guest_id' => null,
+                            'created_at' => $createdAt,
+                            'updated_at' => $createdAt,
+                        ]);
+                    } else {
+                        DB::table('produk_likes')->insertOrIgnore([
+                            'produk_id' => $prod['id'],
+                            'user_id' => null,
+                            'guest_id' => (string) Str::uuid(),
+                            'created_at' => $createdAt,
+                            'updated_at' => $createdAt,
+                        ]);
+                    }
                 }
             }
 
             // ==========================================================
-            // 8) ORDERS (duluan) -> total_amount = 0 dulu
+            // 8) ORDERS
             // ==========================================================
             $statusList = ['baru', 'dibayar', 'diproses', 'dikirim', 'selesai', 'dibatalkan'];
 
@@ -304,9 +327,7 @@ class DemoSitokoperakSeeder extends Seeder
             $jumlahOrders = 40;
 
             for ($i = 1; $i <= $jumlahOrders; $i++) {
-                $userId = $guestIds[array_rand($guestIds)];
-
-                // ambil data user buat nama/phone/address biar realistis
+                $userId = $customerUserIds[array_rand($customerUserIds)];
                 $userRow = DB::table('users')->where('id', $userId)->first();
 
                 $createdAt = Carbon::now()
@@ -319,7 +340,7 @@ class DemoSitokoperakSeeder extends Seeder
                     'customer_name' => $userRow->name ?? ('Customer ' . $i),
                     'customer_phone' => $userRow->phone ?? ('08' . rand(1111111111, 9999999999)),
                     'customer_address' => $userRow->address ?? ('Alamat Customer ' . $i),
-                    'total_amount' => 0, // nanti diupdate setelah order_items masuk
+                    'total_amount' => 0,
                     'status' => $statusList[array_rand($statusList)],
                     'notes' => (rand(0, 10) > 7) ? 'Tolong packing rapi ya.' : null,
                     'created_at' => $createdAt,
@@ -328,12 +349,10 @@ class DemoSitokoperakSeeder extends Seeder
             }
 
             // ==========================================================
-            // 9) ORDER_ITEMS (setelah orders)
-            //    Karena order_items cuma punya produk_id, kita ambil harga dari produk saat ini
+            // 9) ORDER_ITEMS
             // ==========================================================
             foreach ($orderIds as $orderId) {
 
-                // 70% order belanja di 1 toko, 30% multi-toko (lebih “realistis”)
                 $multiToko = (rand(1, 100) <= 30);
 
                 $usahaPick = $usahaIds[array_rand($usahaIds)];
@@ -358,7 +377,7 @@ class DemoSitokoperakSeeder extends Seeder
 
                     $produkId = $pool[array_rand($pool)];
                     if (in_array($produkId, $pickedProduk, true)) {
-                        continue; // biar gak duplikat produk dalam 1 order (lebih rapi)
+                        continue;
                     }
                     $pickedProduk[] = $produkId;
 
@@ -377,7 +396,7 @@ class DemoSitokoperakSeeder extends Seeder
             }
 
             // ==========================================================
-            // 10) UPDATE orders.total_amount (setelah order_items)
+            // 10) UPDATE orders.total_amount
             // ==========================================================
             foreach ($orderIds as $orderId) {
                 $total = (int) DB::table('order_items')
@@ -392,7 +411,6 @@ class DemoSitokoperakSeeder extends Seeder
                         'updated_at' => now(),
                     ]);
             }
-
         });
     }
 }
