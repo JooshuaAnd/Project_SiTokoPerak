@@ -142,18 +142,29 @@
                 @include('pengerajin.laporan_usaha.partials.filter_periode')
             @endif
 
-            {{-- Tombol Terapkan, Export, Reset --}}
+            {{-- Tombol Terapkan, PDF, Export, Reset --}}
             <div class="col-12 d-flex justify-content-end mt-3">
-                <button type="submit" class="btn btn-primary mr-2"><i class="fas fa-filter"></i> Terapkan</button>
+                <button type="submit" class="btn btn-primary mr-2">
+                    <i class="fas fa-filter"></i> Terapkan
+                </button>
+
+                @isset($pdfRoute)
+                    <a href="{{ route($pdfRoute, request()->query()) }}" class="btn btn-danger mr-2">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </a>
+                @endisset
+
                 @isset($exportRoute)
                     <a href="{{ route($exportRoute, request()->query()) }}" class="btn btn-success mr-2">
                         <i class="fas fa-file-export"></i> Export
                     </a>
                 @endisset
+
                 <a href="{{ $resetUrl }}" class="btn btn-secondary">
                     <i class="fas fa-redo"></i> Reset
                 </a>
             </div>
+
         </form>
     </div>
 </div>

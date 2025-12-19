@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\PengerajinExport;
 use App\Exports\SimpleCollectionExport;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaporanUsahaController extends Controller
 {
@@ -84,6 +85,32 @@ class LaporanUsahaController extends Controller
      * URL: /admin/laporan-usaha
      * Route name: admin.laporan_usaha.index
      */
+
+    public function exportPdf(Request $request)
+{
+    // Ambil filter yang sama seperti halaman transaksi kamu
+    $usahaId   = $request->usaha;     // sesuaikan nama param
+    $kategori  = $request->kategori;  // sesuaikan nama param
+    $status    = $request->status;    // sesuaikan nama param
+    $start     = $request->start;     // sesuaikan
+    $end       = $request->end;       // sesuaikan
+
+    // TODO: samakan dengan query yang kamu pakai untuk tampilan transaksi / export excel
+    // Contoh:
+    // $data = Order::query()->...->get();
+
+    $data = []; // ganti dengan data asli kamu
+    $ringkasan = []; // ganti sesuai kebutuhan
+
+    $pdf = Pdf::loadView('admin.laporan_usaha.transaksi_pdf', [
+        'data' => $data,
+        'ringkasan' => $ringkasan,
+        'filters' => $request->all(),
+    ])->setPaper('a4', 'landscape');
+
+    return $pdf->download('laporan-transaksi.pdf');
+}   
+
     public function index(Request $request)
     {
         // ---------- 1. DATA FILTER UNTUK DROPDOWN ----------
@@ -642,5 +669,16 @@ class LaporanUsahaController extends Controller
     public function exportPengerajin()
     {
         return Excel::download(new PengerajinExport, 'pengerajin.xlsx');
+    }
+
+    public function pdfExportSimpleCollection()
+    {
+        $data = User::select('id', 'name', 'email', 'created_at')->limit(100)->get();
+
+        $pdf = Pdf::loadView('admin.laporan_usaha.simple_collection_pdf', [
+            'data' => $data,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('simple-collection.pdf');
     }
 }
