@@ -35,6 +35,7 @@ class LaporanPengerajinController extends Controller
         $pengerajinId = (int) $pengerajin->id;
 
         // mapping lewat tabel pivot usaha_pengerajin
+        // mapping lewat tabel pivot usaha_pengerajin
         $usahaIds = DB::table('usaha_pengerajin')
             ->where('pengerajin_id', $pengerajinId)
             ->pluck('usaha_id')
@@ -64,6 +65,12 @@ class LaporanPengerajinController extends Controller
     }
 
     /**
+     * Logika filter pengerajin:
+     * - Kalau field `pengerajin_id` ADA di request:
+     *     - "" / null  -> user pilih "Semua Pengerajin"  => return null (tanpa WHERE)
+     *     - angka      -> validasi ke usaha_pengerajin   => return id
+     * - Kalau TIDAK ADA field `pengerajin_id` (halaman baru dibuka):
+     *     -> default ke pengerajin yang login
      * Logika filter pengerajin:
      * - Kalau field `pengerajin_id` ADA di request:
      *     - "" / null  -> user pilih "Semua Pengerajin"  => return null (tanpa WHERE)
@@ -102,7 +109,9 @@ class LaporanPengerajinController extends Controller
         }
 
         // Field belum ada sama sekali ⇒ halaman baru dibuka ⇒ default ke pengerajin login
+        // Field belum ada sama sekali ⇒ halaman baru dibuka ⇒ default ke pengerajin login
         $request->merge(['pengerajin_id' => $loginPengerajinId]);
+
 
         return $loginPengerajinId;
     }
@@ -150,6 +159,7 @@ class LaporanPengerajinController extends Controller
                         $startCarbon = $tmp->copy()->startOfDay();
                         $endCarbon = $tmp->copy()->endOfWeek();
                     } catch (\Throwable $e) {
+                        // biarkan jatuh ke nilai sebelumnya
                         // biarkan jatuh ke nilai sebelumnya
                     }
                 }
@@ -219,9 +229,6 @@ class LaporanPengerajinController extends Controller
         if ($request->filled('tahun')) {
             $base->whereYear('o.created_at', $request->tahun);
         }
-        if ($request->filled('bulan')) {
-            $base->whereMonth('o.created_at', $request->bulan);
-        }
 
         // filter kategori & usaha
         if ($request->filled('kategori_id')) {
@@ -261,13 +268,11 @@ class LaporanPengerajinController extends Controller
             10 => 'Oktober',
             11 => 'November',
             12 => 'Desember',
-        ];
+            12 => 'Desember',
+        ]; // Duplicate '12 => 'Desember''
 
-        // --- list usaha, kategori, dll ---
         $usahaList = Usaha::whereIn('id', $usahaIds)->get();
         $kategoriList = KategoriProduk::all();
-        $userList = User::where('role', 'guest')->get(); // cuma referensi kalau perlu
-
         // dropdown "Pengerajin" → semua rekan dalam usaha-usaha ini
         $selectedUsahaId = $request->filled('usaha_id') ? (int) $request->usaha_id : null;
         $pengerajinList = $this->getPengerajinListForFilter($usahaIds, $selectedUsahaId);
@@ -300,6 +305,7 @@ class LaporanPengerajinController extends Controller
 
         // ---------------------------------------------------------------------
         // METRIC ATAS
+        // METRIC ATAS
         // ---------------------------------------------------------------------
         $totalTransaksi = (clone $baseQuery)->distinct('o.id')->count('o.id');
 
@@ -308,6 +314,7 @@ class LaporanPengerajinController extends Controller
             ->value('total') ?? 0;
 
         // ---------------------------------------------------------------------
+        // PENDAPATAN PER USAHA (TOP 3)
         // PENDAPATAN PER USAHA (TOP 3)
         // ---------------------------------------------------------------------
         $pendapatanPerUsaha = (clone $baseQuery)
@@ -323,6 +330,7 @@ class LaporanPengerajinController extends Controller
         ];
 
         // ---------------------------------------------------------------------
+        // PERFORMA PENJUALAN (LINE CHART, MAX 5 USAHA TERATAS)
         // PERFORMA PENJUALAN (LINE CHART, MAX 5 USAHA TERATAS)
         // ---------------------------------------------------------------------
         $performaPenjualanChart = [
@@ -379,6 +387,7 @@ class LaporanPengerajinController extends Controller
 
         // ---------------------------------------------------------------------
         // TOP PRODUK
+        // TOP PRODUK
         // ---------------------------------------------------------------------
         $topProdukRow = (clone $baseQuery)
             ->selectRaw('p.nama_produk, SUM(oi.quantity) as total_qty')
@@ -401,6 +410,7 @@ class LaporanPengerajinController extends Controller
         ];
 
         // ---------------------------------------------------------------------
+        // TOP USER (PEMBELI)
         // TOP USER (PEMBELI)
         // ---------------------------------------------------------------------
         $userAktifRow = (clone $baseQuery)
@@ -427,6 +437,7 @@ class LaporanPengerajinController extends Controller
 
         // ---------------------------------------------------------------------
         // TOP KATEGORI
+        // TOP KATEGORI
         // ---------------------------------------------------------------------
         $kategoriTerjual = (clone $baseQuery)
             ->selectRaw('k.nama_kategori_produk, SUM(oi.quantity) as total_qty')
@@ -441,6 +452,7 @@ class LaporanPengerajinController extends Controller
         ];
 
         // ---------------------------------------------------------------------
+        // PRODUK FAVORITE (LIKE)
         // PRODUK FAVORITE (LIKE)
         // ---------------------------------------------------------------------
         $produkFavoriteQ = DB::table('produk as p')
@@ -474,6 +486,7 @@ class LaporanPengerajinController extends Controller
         ];
 
         // ---------------------------------------------------------------------
+        // PRODUK VIEWS
         // PRODUK VIEWS
         // ---------------------------------------------------------------------
         $produkViewsQ = DB::table('produk as p')

@@ -44,6 +44,9 @@ Route::get("/register", [AuthController::class, "showRegisterForm"])->name(
 );
 Route::post("/register", [AuthController::class, "register"]);
 
+
+
+
 //cart detail
 Route::get("/cart", [CartController::class, "index"])->name("cart.index");
 Route::post("/cart/add/{slug}", [CartController::class, "add"])->name(
