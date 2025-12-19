@@ -9,6 +9,7 @@
         'showUsaha' => true,
         'showKategori' => true,
         'showStatus' => true,
+        'showPengerajin' => true,
         'showDateRange' => true,
         'showPeriode' => true,
         'exportRoute' => 'admin.laporan_usaha.transaksi.export',

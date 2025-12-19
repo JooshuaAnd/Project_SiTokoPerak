@@ -159,6 +159,7 @@
                         <i class="fas fa-file-export"></i> Export
                     </a>
                 @endisset
+                <a href="{{ $resetUrl }}" class="btn btn-secondary mr-2">
 
                 <a href="{{ $resetUrl }}" class="btn btn-secondary">
                     <i class="fas fa-redo"></i> Reset

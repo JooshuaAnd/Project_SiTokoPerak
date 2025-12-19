@@ -15,6 +15,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\PengerajinExport;
 use App\Exports\SimpleCollectionExport;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaporanUsahaController extends Controller
 {
@@ -87,6 +88,32 @@ class LaporanUsahaController extends Controller
      */
 
     public function exportPdf(Request $request)
+    {
+        // Ambil filter yang sama seperti halaman transaksi kamu
+        $usahaId = $request->usaha;     // sesuaikan nama param
+        $kategori = $request->kategori;  // sesuaikan nama param
+        $status = $request->status;    // sesuaikan nama param
+        $start = $request->start;     // sesuaikan
+        $end = $request->end;       // sesuaikan
+
+        // TODO: samakan dengan query yang kamu pakai untuk tampilan transaksi / export excel
+        // Contoh:
+        // $data = Order::query()->...->get();
+
+        $data = []; // ganti dengan data asli kamu
+        $ringkasan = []; // ganti sesuai kebutuhan
+
+        $pdf = Pdf::loadView('admin.laporan_usaha.transaksi_pdf', [
+            'data' => $data,
+            'ringkasan' => $ringkasan,
+            'filters' => $request->all(),
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('laporan-transaksi.pdf');
+    }
+
+
+    public function exportPdf(Request $request)
 {
     // Ambil filter yang sama seperti halaman transaksi kamu
     $usahaId   = $request->usaha;     // sesuaikan nama param
@@ -154,19 +181,23 @@ class LaporanUsahaController extends Controller
         }
 
         // ---------- 3. BASE QUERY UTAMA ----------
-        // Rantai: orders -> order_items -> produk -> usaha_produk -> usaha + kategori
-        //        produk -> pengerajin -> users (akun pengerajin)
+// Rantai baru: orders -> order_items -> produk -> (p.pengerajin_id) -> usaha_pengerajin -> usaha
         $base = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
             ->join('produk', 'produk.id', '=', 'order_items.produk_id')
-            ->join('usaha_produk', 'usaha_produk.produk_id', '=', 'produk.id')
-            ->leftJoin('kategori_produk', 'produk.kategori_produk_id', '=', 'kategori_produk.id')
+            // produk -> pengerajin
             ->leftJoin('pengerajin', 'produk.pengerajin_id', '=', 'pengerajin.id')
             ->leftJoin('users as pengerajin_users', 'pengerajin.user_id', '=', 'pengerajin_users.id')
+            // pengerajin -> usaha
+            ->join('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'produk.pengerajin_id')
+            ->join('usaha', 'usaha.id', '=', 'map.usaha_id')
+            // kategori & user pembeli
+            ->leftJoin('kategori_produk', 'produk.kategori_produk_id', '=', 'kategori_produk.id')
             ->leftJoin('users', 'orders.user_id', '=', 'users.id');
 
         // Hanya produk yang terikat pengerajin
         $base->whereNotNull('produk.pengerajin_id');
+
 
         // Filter tanggal dari periode
         if ($startDate) {
@@ -199,13 +230,10 @@ class LaporanUsahaController extends Controller
             $base->where('pengerajin_users.id', $request->user_id);
         }
 
-        // filter usaha
-        $joinUsahaAlready = false;
         if ($request->filled('usaha_id')) {
-            $base->join('usaha', 'usaha_produk.usaha_id', '=', 'usaha.id')
-                ->where('usaha.id', $request->usaha_id);
-            $joinUsahaAlready = true;
+            $base->where('usaha.id', $request->usaha_id);
         }
+
 
         // Simpan baseQuery untuk dipakai di beberapa agregasi
         $baseQuery = clone $base;
@@ -221,9 +249,6 @@ class LaporanUsahaController extends Controller
 
         // ---------- 6. PENDAPATAN PER USAHA (TOP 3) ----------
         $baseUsahaGroup = clone $base;
-        if (!$joinUsahaAlready) {
-            $baseUsahaGroup->leftJoin('usaha', 'usaha_produk.usaha_id', '=', 'usaha.id');
-        }
 
         $pendapatanPerUsaha = (clone $baseUsahaGroup)
             ->selectRaw('usaha.id as usaha_id, usaha.nama_usaha, SUM(order_items.quantity * order_items.price_at_purchase) as total')
@@ -232,6 +257,7 @@ class LaporanUsahaController extends Controller
             ->orderByDesc('total')
             ->limit(3)
             ->get();
+
 
         $pendapatanChart = [
             'labels' => $pendapatanPerUsaha->pluck('nama_usaha'),
@@ -669,6 +695,17 @@ class LaporanUsahaController extends Controller
     public function exportPengerajin()
     {
         return Excel::download(new PengerajinExport, 'pengerajin.xlsx');
+    }
+
+    public function pdfExportSimpleCollection()
+    {
+        $data = User::select('id', 'name', 'email', 'created_at')->limit(100)->get();
+
+        $pdf = Pdf::loadView('admin.laporan_usaha.simple_collection_pdf', [
+            'data' => $data,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('simple-collection.pdf');
     }
 
     public function pdfExportSimpleCollection()

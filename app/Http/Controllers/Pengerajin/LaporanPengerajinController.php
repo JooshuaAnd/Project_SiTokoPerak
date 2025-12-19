@@ -35,6 +35,7 @@ class LaporanPengerajinController extends Controller
         $pengerajinId = (int) $pengerajin->id;
 
         // mapping lewat tabel pivot usaha_pengerajin
+        // mapping lewat tabel pivot usaha_pengerajin
         $usahaIds = DB::table('usaha_pengerajin')
             ->where('pengerajin_id', $pengerajinId)
             ->pluck('usaha_id')
@@ -57,6 +58,11 @@ class LaporanPengerajinController extends Controller
                 fn($q) => $q->where('up.usaha_id', $selectedUsahaId),
                 fn($q) => $q->whereIn('up.usaha_id', $usahaIds)
             )
+            ->when(
+                $selectedUsahaId,
+                fn($q) => $q->where('up.usaha_id', $selectedUsahaId),
+                fn($q) => $q->whereIn('up.usaha_id', $usahaIds)
+            )
             ->select('p.id', 'p.nama_pengerajin')
             ->distinct()
             ->orderBy('p.nama_pengerajin')
@@ -70,9 +76,25 @@ class LaporanPengerajinController extends Controller
      *     - angka      -> validasi ke usaha_pengerajin   => return id
      * - Kalau TIDAK ADA field `pengerajin_id` (halaman baru dibuka):
      *     -> default ke pengerajin yang login
+     * Logika filter pengerajin:
+     * - Kalau field `pengerajin_id` ADA di request:
+     *     - "" / null  -> user pilih "Semua Pengerajin"  => return null (tanpa WHERE)
+     *     - angka      -> validasi ke usaha_pengerajin   => return id
+     * - Kalau TIDAK ADA field `pengerajin_id` (halaman baru dibuka):
+     *     -> default ke pengerajin yang login
      */
     protected function resolveFilterPengerajinId(Request $request, int $loginPengerajinId, array $usahaIds): ?int
     {
+        // Kalau form sudah pernah di-submit, selalu ada field pengerajin_id (bisa kosong)
+        if ($request->has('pengerajin_id')) {
+            $raw = $request->input('pengerajin_id');
+
+            // Pilih "Semua Pengerajin"
+            if ($raw === null || $raw === '') {
+                return null;
+            }
+
+            $id = (int) $raw;
         // Kalau form sudah pernah di-submit, selalu ada field pengerajin_id (bisa kosong)
         if ($request->has('pengerajin_id')) {
             $raw = $request->input('pengerajin_id');
@@ -97,12 +119,15 @@ class LaporanPengerajinController extends Controller
         }
 
         // (fallback) kalau entah kenapa ada apply_filters tapi nggak ada field pengerajin_id → anggap semua
+        // (fallback) kalau entah kenapa ada apply_filters tapi nggak ada field pengerajin_id → anggap semua
         if ($request->has('apply_filters')) {
             return null;
         }
 
         // Field belum ada sama sekali ⇒ halaman baru dibuka ⇒ default ke pengerajin login
+        // Field belum ada sama sekali ⇒ halaman baru dibuka ⇒ default ke pengerajin login
         $request->merge(['pengerajin_id' => $loginPengerajinId]);
+
 
         return $loginPengerajinId;
     }
@@ -111,6 +136,7 @@ class LaporanPengerajinController extends Controller
     {
         if (!$filterPengerajinId) {
             // semua pengerajin (sesuai usahaIds)
+            // semua pengerajin (sesuai usahaIds)
             return $q;
         }
 
@@ -118,11 +144,17 @@ class LaporanPengerajinController extends Controller
     }
 
     // =========================================================================
-    // HELPER TANGGAL
+    // HELPER TANGGAL (SAMA DENGAN EXPORT\PengerajinLaporanController)
     // =========================================================================
     protected function resolveDateRange(Request $request, ?int $defaultLastDays = null): array
     {
         $periodeType = $request->input('periode_type');
+
+        // support 2 nama field:
+        // - start_date / end_date          (lama)
+        // - periode_tentu_start / _end     (baru, di row "Periode Tertentu")
+        $start = $request->input('periode_tentu_start', $request->input('start_date'));
+        $end = $request->input('periode_tentu_end', $request->input('end_date'));
 
         // support 2 nama field:
         // - start_date / end_date          (lama)
@@ -151,6 +183,7 @@ class LaporanPengerajinController extends Controller
                         $endCarbon = $tmp->copy()->endOfWeek();
                     } catch (\Throwable $e) {
                         // biarkan jatuh ke nilai sebelumnya
+                        // biarkan jatuh ke nilai sebelumnya
                     }
                 }
                 break;
@@ -175,6 +208,7 @@ class LaporanPengerajinController extends Controller
                 break;
         }
 
+        // Default X hari terakhir (misal dashboard/slow-moving)
         // Default X hari terakhir (misal dashboard: 30 hari)
         if (!$startCarbon && !$endCarbon && $defaultLastDays) {
             $endCarbon = Carbon::now()->endOfDay();
@@ -185,6 +219,7 @@ class LaporanPengerajinController extends Controller
     }
 
     // =========================================================================
+    // BASE QUERY UTAMA (dipakai semua widget dashboard)
     // BASE QUERY UTAMA (dipakai semua widget dashboard)
     // =========================================================================
     protected function baseQueryPengerajin(
@@ -205,8 +240,10 @@ class LaporanPengerajinController extends Controller
             ->whereIn('map.usaha_id', $usahaIds);
 
         // filter pengerajin (login / rekan / semua)
+        // filter pengerajin (login / rekan / semua)
         $base = $this->applyPengerajinFilter($base, $filterPengerajinId, 'p');
 
+        // filter tanggal
         // filter tanggal
         if ($start) {
             $base->whereDate('o.created_at', '>=', $start);
@@ -215,6 +252,7 @@ class LaporanPengerajinController extends Controller
             $base->whereDate('o.created_at', '<=', $end);
         }
 
+        // filter tambahan tahun / bulan (kalau memang dipakai di form)
         // filter tambahan tahun / bulan (kalau dipakai di menu lain)
         if ($request->filled('tahun')) {
             $base->whereYear('o.created_at', $request->tahun);
@@ -223,6 +261,7 @@ class LaporanPengerajinController extends Controller
             $base->whereMonth('o.created_at', $request->bulan);
         }
 
+        // filter kategori & usaha
         // filter kategori & usaha
         if ($request->filled('kategori_id')) {
             $base->where('k.id', $request->kategori_id);
@@ -261,21 +300,27 @@ class LaporanPengerajinController extends Controller
             10 => 'Oktober',
             11 => 'November',
             12 => 'Desember',
+            12 => 'Desember',
         ];
 
+        // --- list usaha, kategori, dll ---
         // --- list usaha, kategori, dll ---
         $usahaList = Usaha::whereIn('id', $usahaIds)->get();
         $kategoriList = KategoriProduk::all();
         $userList = User::where('role', 'guest')->get(); // cuma referensi kalau perlu
+        $userList = User::where('role', 'guest')->get(); // cuma referensi kalau perlu
 
+        // dropdown "Pengerajin" → semua rekan dalam usaha-usaha ini
         // dropdown "Pengerajin" → semua rekan dalam usaha-usaha ini
         $selectedUsahaId = $request->filled('usaha_id') ? (int) $request->usaha_id : null;
         $pengerajinList = $this->getPengerajinListForFilter($usahaIds, $selectedUsahaId);
 
         // --- RANGE TANGGAL DARI FILTER PERIODE ---
-        $hasSimplePeriode = $request->filled('tahun') || $request->filled('bulan');
-        [$startDate, $endDate] = $this->resolveDateRange($request, $hasSimplePeriode ? null : 30);
+        // CHANGED: disamakan dengan Export\PengerajinLaporanController
+        // Tidak lagi pakai default 30 hari; full pakai periode yang dipilih user
+        [$startDate, $endDate] = $this->resolveDateRange($request, null);
 
+        // label untuk ditampilkan di card
         // label untuk ditampilkan di card
         $periodeLabel = null;
         if ($startDate && $endDate) {
@@ -287,9 +332,19 @@ class LaporanPengerajinController extends Controller
         }
 
         // --- BASE QUERY UTAMA ---
-        $base = $this->baseQueryPengerajin($request, $loginPengerajinId, $usahaIds, $filterPengerajinId, $startDate, $endDate);
+        $base = $this->baseQueryPengerajin(
+            $request,
+            $loginPengerajinId,
+            $usahaIds,
+            $filterPengerajinId,
+            $startDate,
+            $endDate
+        );
         $baseQuery = clone $base;
 
+        // ---------------------------------------------------------------------
+        // METRIC ATAS
+        // ---------------------------------------------------------------------
         // ---------------------------------------------------------------------
         // METRIC ATAS
         // ---------------------------------------------------------------------
@@ -299,6 +354,9 @@ class LaporanPengerajinController extends Controller
             ->selectRaw('COALESCE(SUM(oi.quantity * oi.price_at_purchase),0) as total')
             ->value('total') ?? 0;
 
+        // ---------------------------------------------------------------------
+        // PENDAPATAN PER USAHA (TOP 3)
+        // ---------------------------------------------------------------------
         // ---------------------------------------------------------------------
         // PENDAPATAN PER USAHA (TOP 3)
         // ---------------------------------------------------------------------
@@ -314,6 +372,9 @@ class LaporanPengerajinController extends Controller
             'data' => $pendapatanPerUsaha->pluck('total'),
         ];
 
+        // ---------------------------------------------------------------------
+        // PERFORMA PENJUALAN (LINE CHART, MAX 5 USAHA TERATAS)
+        // ---------------------------------------------------------------------
         // ---------------------------------------------------------------------
         // PERFORMA PENJUALAN (LINE CHART, MAX 5 USAHA TERATAS)
         // ---------------------------------------------------------------------
@@ -372,6 +433,9 @@ class LaporanPengerajinController extends Controller
         // ---------------------------------------------------------------------
         // TOP PRODUK
         // ---------------------------------------------------------------------
+        // ---------------------------------------------------------------------
+        // TOP PRODUK
+        // ---------------------------------------------------------------------
         $topProdukRow = (clone $baseQuery)
             ->selectRaw('p.nama_produk, SUM(oi.quantity) as total_qty')
             ->groupBy('p.id', 'p.nama_produk')
@@ -392,6 +456,9 @@ class LaporanPengerajinController extends Controller
             'data' => $produkTerlaris->pluck('total_qty'),
         ];
 
+        // ---------------------------------------------------------------------
+        // TOP USER (PEMBELI)
+        // ---------------------------------------------------------------------
         // ---------------------------------------------------------------------
         // TOP USER (PEMBELI)
         // ---------------------------------------------------------------------
@@ -420,6 +487,9 @@ class LaporanPengerajinController extends Controller
         // ---------------------------------------------------------------------
         // TOP KATEGORI
         // ---------------------------------------------------------------------
+        // ---------------------------------------------------------------------
+        // TOP KATEGORI
+        // ---------------------------------------------------------------------
         $kategoriTerjual = (clone $baseQuery)
             ->selectRaw('k.nama_kategori_produk, SUM(oi.quantity) as total_qty')
             ->groupBy('k.id', 'k.nama_kategori_produk')
@@ -432,6 +502,9 @@ class LaporanPengerajinController extends Controller
             'data' => $kategoriTerjual->pluck('total_qty'),
         ];
 
+        // ---------------------------------------------------------------------
+        // PRODUK FAVORITE (LIKE)
+        // ---------------------------------------------------------------------
         // ---------------------------------------------------------------------
         // PRODUK FAVORITE (LIKE)
         // ---------------------------------------------------------------------
@@ -465,6 +538,9 @@ class LaporanPengerajinController extends Controller
             'data' => $produkFavorite->pluck('total_like'),
         ];
 
+        // ---------------------------------------------------------------------
+        // PRODUK VIEWS
+        // ---------------------------------------------------------------------
         // ---------------------------------------------------------------------
         // PRODUK VIEWS
         // ---------------------------------------------------------------------

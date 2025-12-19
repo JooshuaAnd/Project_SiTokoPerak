@@ -87,15 +87,15 @@ class LaporanController extends Controller
             // oi -> produk
             ->leftJoin('produk as p', 'p.id', '=', 'oi.produk_id')
 
-            // produk -> usaha
-            ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->leftJoin('usaha as us', 'us.id', '=', 'up.usaha_id')
-
-            ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id')
-
-            // pengerajin mapping (filter user_id = akun pengerajin)
+            // produk -> pengerajin
             ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
-            ->leftJoin('users as pengerajin_users', 'pengerajin.user_id', '=', 'pengerajin_users.id');
+            ->leftJoin('users as pengerajin_users', 'pengerajin.user_id', '=', 'pengerajin_users.id')
+
+            // pengerajin -> usaha lewat usaha_pengerajin (BUKAN usaha_produk lagi)
+            ->leftJoin('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
+            ->leftJoin('usaha as us', 'us.id', '=', 'map.usaha_id')
+
+            ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id');
 
         if ($request->filled('usaha_id')) {
             $base->where('us.id', $request->usaha_id);
@@ -129,6 +129,7 @@ class LaporanController extends Controller
 
         return $base;
     }
+
 
     public function transaksi(Request $request)
     {
@@ -213,14 +214,13 @@ class LaporanController extends Controller
     {
         $query = DB::table('kategori_produk as k')
             ->leftJoin('produk as p', 'p.kategori_produk_id', '=', 'k.id')
-            ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
-
-            // oi join ke produk
+            // produk -> pengerajin -> usaha
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->leftJoin('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
+            ->leftJoin('usaha as u', 'u.id', '=', 'map.usaha_id')
+            // penjualan
             ->leftJoin('order_items as oi', 'oi.produk_id', '=', 'p.id')
             ->leftJoin('orders as o', 'o.id', '=', 'oi.order_id')
-
-            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
             ->leftJoin('users as pu', 'pengerajin.user_id', '=', 'pu.id');
 
         if ($request->filled('usaha_id')) {
@@ -309,16 +309,13 @@ class LaporanController extends Controller
     {
         $query = DB::table('orders as o')
             ->join('order_items as oi', 'oi.order_id', '=', 'o.id')
-
             // oi -> produk
             ->join('produk as p', 'p.id', '=', 'oi.produk_id')
-
-            // produk -> usaha
-            ->join('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->join('usaha as u', 'u.id', '=', 'up.usaha_id')
-
-            ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id')
+            // produk -> pengerajin -> usaha
             ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->join('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
+            ->join('usaha as u', 'u.id', '=', 'map.usaha_id')
+            ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id')
             ->leftJoin('users as pu', 'pengerajin.user_id', '=', 'pu.id');
 
         if ($request->filled('usaha_id')) {
@@ -345,6 +342,7 @@ class LaporanController extends Controller
 
         return $query;
     }
+
 
     public function pendapatanUsaha(Request $request)
     {
@@ -424,9 +422,9 @@ class LaporanController extends Controller
     {
         $query = DB::table('produk as p')
             ->leftJoin('produk_likes as pl', 'pl.produk_id', '=', 'p.id')
-            ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
-            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id');
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->leftJoin('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
+            ->leftJoin('usaha as u', 'u.id', '=', 'map.usaha_id');
 
         if ($request->filled('usaha_id')) {
             $query->where('u.id', $request->usaha_id);
@@ -443,6 +441,7 @@ class LaporanController extends Controller
 
         return $query;
     }
+
 
     public function produkFavorite(Request $request)
     {
@@ -499,9 +498,9 @@ class LaporanController extends Controller
     {
         $query = DB::table('produk as p')
             ->leftJoin('kategori_produk as k', 'k.id', '=', 'p.kategori_produk_id')
-            ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
             ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->leftJoin('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
+            ->leftJoin('usaha as u', 'u.id', '=', 'map.usaha_id')
             ->leftJoin('order_items as oi', function ($join) use ($start, $end) {
                 // oi join ke produk
                 $join->on('oi.produk_id', '=', 'p.id');
@@ -525,17 +524,18 @@ class LaporanController extends Controller
 
         $query->groupBy('p.id', 'p.nama_produk', 'u.id', 'u.nama_usaha')
             ->selectRaw('
-                u.nama_usaha,
-                p.nama_produk,
-                COALESCE(SUM(oi.quantity), 0) as total_terjual,
-                MAX(oi.created_at) as transaksi_terakhir
-            ')
+            u.nama_usaha,
+            p.nama_produk,
+            COALESCE(SUM(oi.quantity), 0) as total_terjual,
+            MAX(oi.created_at) as transaksi_terakhir
+        ')
             ->havingRaw('COALESCE(SUM(oi.quantity), 0) < ?', [$threshold])
             ->orderBy('total_terjual', 'asc')
             ->orderBy('p.nama_produk');
 
         return $query;
     }
+
 
     public function produkSlowMoving(Request $request)
     {
@@ -600,15 +600,12 @@ class LaporanController extends Controller
     {
         $query = DB::table('order_items as oi')
             ->join('orders as o', 'o.id', '=', 'oi.order_id')
-
             // oi -> produk
             ->join('produk as p', 'p.id', '=', 'oi.produk_id')
-
-            // produk -> usaha
-            ->join('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->join('usaha as us', 'us.id', '=', 'up.usaha_id')
-
+            // produk -> pengerajin -> usaha
             ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->join('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
+            ->join('usaha as us', 'us.id', '=', 'map.usaha_id')
             ->leftJoin('users as pu', 'pengerajin.user_id', '=', 'pu.id');
 
         if ($request->filled('usaha_id')) {
@@ -696,9 +693,9 @@ class LaporanController extends Controller
     {
         $viewsQuery = DB::table('produk as p')
             ->join('produk_views as pv', 'pv.produk_id', '=', 'p.id')
-            ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id')
-            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id');
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->leftJoin('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
+            ->leftJoin('usaha as u', 'u.id', '=', 'map.usaha_id');
 
         if ($request->filled('usaha_id')) {
             $viewsQuery->where('u.id', $request->usaha_id);
@@ -724,8 +721,9 @@ class LaporanController extends Controller
         [$start, $end] = $this->resolveDateRange($request, null);
 
         $produkBase = DB::table('produk as p')
-            ->leftJoin('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->leftJoin('usaha as u', 'u.id', '=', 'up.usaha_id');
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->leftJoin('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
+            ->leftJoin('usaha as u', 'u.id', '=', 'map.usaha_id');
 
         if ($request->filled('usaha_id')) {
             $produkBase->where('u.id', $request->usaha_id);
@@ -785,14 +783,12 @@ class LaporanController extends Controller
         $query = DB::table('orders as o')
             ->join('users as u', 'u.id', '=', 'o.user_id')
             ->join('order_items as oi', 'oi.order_id', '=', 'o.id')
-
             // oi -> produk
             ->join('produk as p', 'p.id', '=', 'oi.produk_id')
-
-            // produk -> usaha
-            ->join('usaha_produk as up', 'up.produk_id', '=', 'p.id')
-            ->join('usaha as us', 'us.id', '=', 'up.usaha_id')
-            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id');
+            // produk -> pengerajin -> usaha
+            ->leftJoin('pengerajin', 'p.pengerajin_id', '=', 'pengerajin.id')
+            ->join('usaha_pengerajin as map', 'map.pengerajin_id', '=', 'p.pengerajin_id')
+            ->join('usaha as us', 'us.id', '=', 'map.usaha_id');
 
         if ($request->filled('usaha_id')) {
             $query->where('us.id', $request->usaha_id);
@@ -812,6 +808,7 @@ class LaporanController extends Controller
 
         return $query;
     }
+
 
     public function transaksiUser(Request $request)
     {
