@@ -5,8 +5,8 @@
 @section('content')
     {{-- 🔍 FILTER --}}
     @include('admin.laporan_usaha.filter', [
-        'action' => route('admin.laporan_usaha.produk-terlaris'),
-        'resetUrl' => route('admin.laporan_usaha.produk-terlaris'),
+        'action' => route('admin.laporan_usaha.produk_terlaris'),
+        'resetUrl' => route('admin.laporan_usaha.produk_terlaris'),
         'showUsaha' => true,
         'showKategori' => true,
         'showStatus' => true,

@@ -1,6 +1,6 @@
 @extends('adminlte::page')
 
-@section('title', 'Foto Produk')
+@section('title', 'Export Laporan Usaha')
 
 
 @section('content')

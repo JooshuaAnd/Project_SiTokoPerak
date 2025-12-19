@@ -131,6 +131,7 @@ class LaporanController extends Controller
     }
 
 
+
     public function transaksi(Request $request)
     {
         $usahaList = Usaha::all();
@@ -146,20 +147,28 @@ class LaporanController extends Controller
 
         [$start, $end] = $this->resolveDateRange($request, null);
 
-        $transaksi = $this->baseTransaksiQuery($request, $start, $end)
-            ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.total_amount', 'o.status', 'o.created_at')
+        // base query sekali saja supaya konsisten
+        $base = $this->baseTransaksiQuery($request, $start, $end);
+
+        // list transaksi per order, tapi totalnya = total seller (SUM item)
+        $transaksi = (clone $base)
+            ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.status', 'o.created_at')
             ->selectRaw('
-                o.id,
-                COALESCE(u.username, o.customer_name) as username,
-                o.total_amount as total,
-                DATE_FORMAT(o.created_at, "%d-%m-%Y %H:%i") as tanggal_transaksi,
-                o.status
-            ')
+            o.id,
+            COALESCE(u.username, o.customer_name) as username,
+            SUM(oi.quantity * oi.price_at_purchase) as total,
+            DATE_FORMAT(o.created_at, "%d-%m-%Y %H:%i") as tanggal_transaksi,
+            o.status
+        ')
             ->orderByDesc('o.created_at')
             ->get();
 
         $totalTransaksi = $transaksi->count();
-        $totalNominal = (int) $transaksi->sum('total');
+
+        // total nominal juga pakai SUM item yang sama (murni 14jt-an, bukan total_amount)
+        $totalNominal = (clone $base)
+            ->selectRaw('COALESCE(SUM(oi.quantity * oi.price_at_purchase), 0) as total')
+            ->value('total') ?? 0;
 
         return view('admin.laporan_usaha.transaksi', compact(
             'usahaList',
@@ -173,19 +182,22 @@ class LaporanController extends Controller
         ));
     }
 
+
     public function exportTransaksi(Request $request)
     {
         [$start, $end] = $this->resolveDateRange($request, null);
 
-        $rows = $this->baseTransaksiQuery($request, $start, $end)
-            ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.total_amount', 'o.status', 'o.created_at')
+        $base = $this->baseTransaksiQuery($request, $start, $end);
+
+        $rows = (clone $base)
+            ->groupBy('o.id', 'u.username', 'o.customer_name', 'o.status', 'o.created_at')
             ->selectRaw('
-                o.id,
-                COALESCE(u.username, o.customer_name) as username,
-                o.total_amount as total,
-                DATE_FORMAT(o.created_at, "%d-%m-%Y %H:%i") as tanggal_transaksi,
-                o.status
-            ')
+            o.id,
+            COALESCE(u.username, o.customer_name) as username,
+            SUM(oi.quantity * oi.price_at_purchase) as total,
+            DATE_FORMAT(o.created_at, "%d-%m-%Y %H:%i") as tanggal_transaksi,
+            o.status
+        ')
             ->orderByDesc('o.created_at')
             ->get();
 
@@ -194,7 +206,7 @@ class LaporanController extends Controller
                 return [
                     $row->id,
                     $row->username,
-                    $row->total,
+                    $row->total,              // ini sudah "murni" seller
                     $row->tanggal_transaksi,
                     $row->status,
                 ];
@@ -205,6 +217,7 @@ class LaporanController extends Controller
         $filename = 'transaksi_' . now()->format('Ymd_His') . '.xlsx';
         return Excel::download($export, $filename);
     }
+
 
     /* =========================================================================
      * KATEGORI PRODUK
