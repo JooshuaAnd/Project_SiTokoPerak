@@ -35,8 +35,7 @@
                             <div class="row">
                                 @foreach ($chunk as $kategori)
                                     <div class="col-lg-4 col-md-6 mb-4">
-                                        <a
-                                            href="{{ route('guest-katalog', array_merge(request()->except('page'), ['kategori' => $kategori->slug])) }}">
+                                        <a href="{{ route('guest-katalog', ['kategori' => $kategori->slug]) }}">
                                             <div class="card category-card h-100">
                                                 <img src="{{ asset('assets/images/' . $kategori->slug . '.jpg') }}"
                                                     alt="{{ $kategori->nama_kategori_produk }}"
@@ -59,12 +58,10 @@
                 <button class="carousel-control-prev" type="button" data-bs-target="#categoryCarousel"
                     data-bs-slide="prev">
                     <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden"></span>
                 </button>
                 <button class="carousel-control-next" type="button" data-bs-target="#categoryCarousel"
                     data-bs-slide="next">
                     <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden"></span>
                 </button>
             </div>
         </div>
@@ -85,44 +82,43 @@
                     <div class="col-lg-3 col-md-6 mb-4">
                         <div class="product-item">
                             <div class="thumb">
-                                {{-- Gambar (klik = view + pindah ke detail) --}}
+                                {{-- Gambar Utama --}}
                                 <a href="{{ route('guest-singleProduct', $produk->slug) }}" class="img-link btn-show"
                                     data-id="{{ $produk->id }}">
                                     <img src="{{ asset('storage/' . (optional($produk->fotoProduk->first())->file_foto_produk ?? 'placeholder.jpg')) }}"
                                         alt="{{ $produk->nama_produk }}"
-                                        onerror="this.onerror=null;this.src='{{ asset('images/produk-default.jpg') }}';">
+                                        onerror="this.onerror=null;this.src='{{ asset('assets/images/produk-default.jpg') }}';">
                                 </a>
 
-                                {{-- Overlay icon --}}
+                                {{-- HOVER CONTENT (Overlay Menu Tengah) --}}
                                 <div class="hover-content">
                                     <ul>
-                                        {{-- SHOW --}}
                                         <li>
                                             <a href="{{ route('guest-singleProduct', $produk->slug) }}" class="btn-show"
                                                 data-id="{{ $produk->id }}">
                                                 <i class="fa fa-eye"></i>
                                             </a>
                                         </li>
-
-                                        {{-- LIKE --}}
                                         <li>
                                             @if (auth()->check())
-                                            <button type="button" class="like-btn" data-id="{{ $produk->id }}">
-                                                <i
-                                                class="fa fa-star star-icon {{ $produk->is_liked ? 'active' : '' }}"></i>
-                                            </button>
+                                                <button type="button" class="like-btn" data-id="{{ $produk->id }}">
+                                                    <i
+                                                        class="fa fa-star star-icon {{ $produk->is_liked ? 'active' : '' }}"></i>
+                                                </button>
                                             @else
-                                            <a href="{{ route('loginForm') }}">
-                                                <i class="fa fa-star star-icon"></i>
-                                            </a>
+                                                <a href="{{ route('login') }}">
+                                                    <i class="fa fa-star star-icon"></i>
+                                                </a>
                                             @endif
                                         </li>
-
-                                        {{-- CART (sementara dummy) --}}
                                         <li>
-                                            <button type="button" class="add-cart-btn" data-id="{{ $produk->id }}">
-                                                <i class="fa fa-shopping-cart"></i>
-                                            </button>
+                                            <form action="{{ route('cart.add', $produk->slug) }}" method="POST"
+                                                class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="add-to-cart-btn-hover">
+                                                    <i class="fa fa-shopping-cart"></i>
+                                                </button>
+                                            </form>
                                         </li>
                                     </ul>
                                 </div>
@@ -131,12 +127,7 @@
                             <div class="down-content">
                                 <h4>{{ $produk->nama_produk }}</h4>
                                 <span class="product-price">Rp {{ number_format($produk->harga, 0, ',', '.') }}</span>
-                                <ul class="stars">
-                                    @for ($i = 0; $i < 5; $i++)
-                                        <li><i class="fa fa-star"></i></li>
-                                    @endfor
-                                </ul>
-                                <p class="product-reviews">
+                                <p class="product-meta-text text-muted small mt-2">
                                     {{ $produk->views_count ?? 0 }}x dilihat • {{ $produk->likes_count ?? 0 }} suka
                                 </p>
                             </div>
@@ -166,7 +157,8 @@
                 <div class="col-lg-5 col-md-12">
                     <div class="about-content">
                         <h3>TekoPerakku</h3>
-                        <p>TekoPerakku menghadirkan kerajinan perak asli Kotagede dengan kualitas terbaik...</p>
+                        <p>TekoPerakku menghadirkan kerajinan perak asli Kotagede dengan kualitas terbaik yang dikerjakan
+                            oleh tangan-tangan ahli untuk memastikan keindahan dan ketahanan produk.</p>
                         <a href="{{ route('guest-about') }}" class="btn btn-primary about-btn">Pelajari Lebih Lanjut</a>
                     </div>
                 </div>
@@ -174,64 +166,71 @@
         </div>
     </section>
 
-    {{-- ==================== STYLE UNTUK ICON HOVER ==================== --}}
+    {{-- ==================== STYLE ==================== --}}
     <style>
-        .product-item .thumb,
-        .item .thumb {
+        .product-item .thumb {
             position: relative;
             overflow: hidden;
             border-radius: 6px;
         }
 
-        .product-item .hover-content,
-        .item .hover-content {
+        /* Overlay Menu Hover Tengah */
+        .product-item .hover-content {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 5;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity .2s ease, visibility .2s ease;
-            pointer-events: none;
-        }
-
-        .product-item:hover .hover-content,
-        .item:hover .hover-content {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
-        }
-
-        .product-item .hover-content ul,
-        .item .hover-content ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-
-        .product-item .hover-content ul li,
-        .item .hover-content ul li {
-            display: inline-block;
-            margin-left: 5px;
-        }
-
-        .product-item .hover-content a,
-        .product-item .hover-content button,
-        .item .hover-content a,
-        .item .hover-content button {
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: inline-flex;
+            bottom: -100px;
+            /* Sembunyi di bawah */
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(42, 42, 42, 0.9);
+            display: flex;
             align-items: center;
             justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease;
+            z-index: 5;
+        }
+
+        .product-item:hover .hover-content {
+            bottom: 0;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .product-item .hover-content ul {
+            list-style: none;
+            display: flex;
+            gap: 10px;
+            padding: 0;
+            margin: 0;
+        }
+
+        .product-item .hover-content ul li a,
+        .product-item .hover-content ul li button {
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            color: #2a2a2a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
             border: none;
+            transition: 0.3s;
+            text-decoration: none;
+        }
+
+        .product-item .hover-content ul li a:hover,
+        .product-item .hover-content ul li button:hover {
+            background: #212529;
             color: #fff;
         }
 
+        /* Warna Bintang */
         .star-icon {
-            transition: .2s ease;
+            color: #ccc;
+            transition: color 0.3s ease;
         }
 
         .star-icon.active {
@@ -244,18 +243,17 @@
 @push('scripts')
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            // Scroll ke section produk
+            // --- Smooth Scroll ke Section Produk ---
             const scrollBtn = document.querySelector('.scroll-to-produk');
             if (scrollBtn) {
-                scrollBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
+                scrollBtn.addEventListener('click', function() {
                     document.querySelector('.products')?.scrollIntoView({
                         behavior: 'smooth'
                     });
                 });
             }
 
-            // === LIKE ===
+            // --- LIKE AJAX ---
             document.querySelectorAll('.like-btn').forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -263,12 +261,11 @@
 
                     const productId = this.dataset.id;
                     const icon = this.querySelector('.star-icon');
-                    const card = this.closest('.product-item');
-                    const infoText = card?.querySelector('.product-reviews');
+                    const infoText = this.closest('.product-item').querySelector(
+                        '.product-meta-text');
 
                     fetch(`/produk/${productId}/like`, {
                             method: 'POST',
-                            credentials: 'same-origin',
                             headers: {
                                 'Accept': 'application/json',
                                 'Content-Type': 'application/json',
@@ -278,42 +275,36 @@
                         })
                         .then(res => res.json())
                         .then(data => {
-                            if (data.liked) {
-                                icon.classList.add('active');
-                            } else {
-                                icon.classList.remove('active');
-                            }
+                            if (data.liked) icon.classList.add('active');
+                            else icon.classList.remove('active');
 
                             if (infoText && typeof data.totalLikes !== 'undefined') {
-                                const parts = infoText.textContent.split('•');
-                                const viewsPart = parts[0].trim(); // "0x dilihat"
-                                infoText.textContent = `${viewsPart} • ${data.totalLikes} suka`;
+                                const viewsPart = infoText.innerText.split('•')[0].trim();
+                                infoText.innerText = `${viewsPart} • ${data.totalLikes} suka`;
                             }
                         })
                         .catch(err => console.error(err));
                 });
             });
 
-            // === VIEW (eye + klik gambar) ===
-            document.querySelectorAll('.btn-show').forEach(link => {
+            // --- VIEW COUNTER AJAX ---
+            document.querySelectorAll('.btn-show, .img-link').forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
-
                     const productId = this.dataset.id;
                     const url = this.getAttribute('href');
 
                     fetch(`/produk/${productId}/view`, {
                         method: 'POST',
-                        credentials: 'same-origin',
                         headers: {
                             'Accept': 'application/json',
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
                         body: JSON.stringify({})
-                    }).catch(err => console.error(err));
-
-                    window.location.href = url;
+                    }).finally(() => {
+                        window.location.href = url;
+                    });
                 });
             });
         });
