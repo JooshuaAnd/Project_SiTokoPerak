@@ -127,9 +127,6 @@
                             <div class="down-content">
                                 <h4>{{ $produk->nama_produk }}</h4>
                                 <span class="product-price">Rp {{ number_format($produk->harga, 0, ',', '.') }}</span>
-                                <p class="product-meta-text text-muted small mt-2">
-                                    {{ $produk->views_count ?? 0 }}x dilihat • {{ $produk->likes_count ?? 0 }} suka
-                                </p>
                             </div>
                         </div>
                     </div>
